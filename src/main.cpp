@@ -1,9 +1,9 @@
 // Import required libraries
 #include <Arduino.h>
-#include <ESP8266WiFi.h>
-#include <ESPAsyncTCP.h>
+#include <WiFi.h>
+#include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include "FS.h"
+#include <SPIFFS.h>
 
 // Replace with your network credentials
 const char* ssid = "MIX";

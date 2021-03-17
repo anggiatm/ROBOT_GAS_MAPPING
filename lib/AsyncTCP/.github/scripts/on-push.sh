@@ -7,7 +7,7 @@ if [ ! -z "$TRAVIS_BUILD_DIR" ]; then
 	export GITHUB_REPOSITORY="$TRAVIS_REPO_SLUG"
 elif [ -z "$GITHUB_WORKSPACE" ]; then
 	export GITHUB_WORKSPACE="$PWD"
-	export GITHUB_REPOSITORY="me-no-dev/ESPAsyncTCP"
+	export GITHUB_REPOSITORY="me-no-dev/AsyncTCP"
 fi
 
 CHUNK_INDEX=$1
@@ -25,12 +25,12 @@ fi
 if [ "$BUILD_PIO" -eq 0 ]; then
 	# ArduinoIDE Test
 	source ./.github/scripts/install-arduino-ide.sh
-	source ./.github/scripts/install-arduino-core-esp8266.sh
+	source ./.github/scripts/install-arduino-core-esp32.sh
 
-	echo "Installing ESPAsyncTCP ..."
-	cp -rf "$GITHUB_WORKSPACE" "$ARDUINO_USR_PATH/libraries/ESPAsyncTCP"
+	echo "Installing AsyncTCP ..."
+	cp -rf "$GITHUB_WORKSPACE" "$ARDUINO_USR_PATH/libraries/AsyncTCP"
 
-	FQBN="esp8266com:esp8266:generic:eesz=4M1M,ip=lm2f"
+	FQBN="espressif:esp32:esp32:PSRAM=enabled,PartitionScheme=huge_app"
 	build_sketches "$FQBN" "$GITHUB_WORKSPACE/examples"
 	if [ ! "$OS_IS_WINDOWS" == "1" ]; then
 		echo "Installing ESPAsyncWebServer ..."
@@ -45,10 +45,10 @@ else
 	# PlatformIO Test
 	source ./.github/scripts/install-platformio.sh
 
-	echo "Installing ESPAsyncTCP ..."
+	echo "Installing AsyncTCP ..."
 	python -m platformio lib --storage-dir "$GITHUB_WORKSPACE" install
 
-	BOARD="esp12e"
+	BOARD="esp32dev"
 	build_pio_sketches "$BOARD" "$GITHUB_WORKSPACE/examples"
 
 	if [[ "$OSTYPE" != "cygwin" ]] && [[ "$OSTYPE" != "msys" ]] && [[ "$OSTYPE" != "win32" ]]; then
