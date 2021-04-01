@@ -1,0 +1,27 @@
+name: Run tests with simavr
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-20.04
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: get platformio
+      run: curl -fsSL https://raw.githubusercontent.com/platformio/platformio-core-installer/master/get-platformio.py -o get-platformio.py
+    - name: install platformio
+      run: python3 get-platformio.py
+    - name: install platform atmelavr
+      run:  ~/.platformio/penv/bin/pio platform install "atmelavr"
+    - name: install lib elf
+      run:  sudo apt install libelf-dev
+    - name: make links
+      run: make -C tests/simavr_based links
+    - name: make
+      run: make SILENCE=1 -C tests/simavr_based
