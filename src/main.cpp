@@ -5,6 +5,22 @@
 #include <ESPAsyncWebServer.h>
 #include <SPIFFS.h>
 
+/*Example sketch to control a stepper motor with A4988 stepper motor driver, AccelStepper library and Arduino: acceleration and deceleration. More info: https://www.makerguides.com */
+// Include the AccelStepper library:
+#include <AccelStepper.h>
+// Define stepper motor connections and motor interface type. Motor interface type must be set to 1 when using a driver:
+#define DIR_R 32
+#define STEP_R 33
+
+#define DIR_L 25
+#define STEP_L 26
+
+
+// Create a new instance of the AccelStepper class:
+
+AccelStepper STEPPER_R(AccelStepper::DRIVER, STEP_R, DIR_R);
+AccelStepper STEPPER_L(AccelStepper::DRIVER, STEP_L, DIR_L);
+
 // Replace with your network credentials
 const char* ssid = "MIX";
 const char* password = "123456789";
@@ -12,6 +28,7 @@ const char* password = "123456789";
 bool ledState = 0;
 const int ledPin = 2;
 int x=1;
+int mode = 1;
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -67,12 +84,53 @@ String processor(const String& var){
   }
 }
 
+bool FORWARD(int value){
+  STEPPER_R.moveTo(value);
+  if (STEPPER_R.distanceToGo() == 0){
+    return true;
+  }else{
+    return false;
+  }
+}
+
+bool BACKWARD(int value){
+   if (STEPPER_R.currentPosition() != value){
+    STEPPER_R.moveTo(value - STEPPER_R.currentPosition());
+    STEPPER_L.moveTo(value - STEPPER_L.currentPosition());
+    STEPPER_R.run();
+    STEPPER_L.run();
+    return false;
+  }else{
+    return true;
+  }
+}
+
+bool ROTATE_R(int value){
+  STEPPER_R.moveTo(STEPPER_R.currentPosition()+value);
+  STEPPER_L.moveTo(STEPPER_L.currentPosition()-value);
+}
+
+bool ROTATE_L(int value){
+  STEPPER_R.moveTo(STEPPER_R.currentPosition()-value);
+  STEPPER_L.moveTo(STEPPER_L.currentPosition()+value);
+}
+
 void setup(){
   // Serial port for debugging purposes
   Serial.begin(115200);
 
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, LOW);
+
+  STEPPER_R.setMaxSpeed(400.0);
+  STEPPER_R.setAcceleration(150.0);
+  STEPPER_L.setPinsInverted (false, false, false); // (bool directionInvert=false, bool stepInvert=false, bool enableInvert=false)
+  //STEPPER_R.moveTo(800);
+    
+  STEPPER_L.setMaxSpeed(400.0);
+  STEPPER_L.setAcceleration(150.0);
+  STEPPER_L.setPinsInverted (true, false, false); // (bool directionInvert=false, bool stepInvert=false, bool enableInvert=false)
+  //STEPPER_L.moveTo(800);
 
   // Initialize SPIFFS
   if(!SPIFFS.begin()){
@@ -121,5 +179,53 @@ void loop() {
   digitalWrite(ledPin, ledState);
   x=x+1;
   ws.textAll(String(x));
-  delay(1000);
+  //delay(1000);
+
+  // Change direction at the limits
+  //   if (STEPPER_R.distanceToGo() == 0){
+  //     STEPPER_R.moveTo(-STEPPER_R.currentPosition());
+  //   }
+	
+  //int move = 800;
+  if (mode == 1){
+    //int value = 800;
+    STEPPER_R.moveTo(800);
+    STEPPER_L.moveTo(800);
+    if (STEPPER_L.distanceToGo() == 0){
+      STEPPER_R.setCurrentPosition(0);
+    STEPPER_L.setCurrentPosition(0);
+      mode = 2;
+    }else{
+      mode = 1;
+    }
+  }else if(mode == 2){
+    
+
+    STEPPER_R.moveTo(-800);
+    STEPPER_L.moveTo(-800);
+    if (STEPPER_L.distanceToGo() == 0){
+      STEPPER_R.setCurrentPosition(0);
+    STEPPER_L.setCurrentPosition(0);
+      mode = 3;
+    }else{
+      mode = 2;
+    }
+  }else if(mode == 3){
+
+    STEPPER_R.moveTo(800);
+    STEPPER_L.moveTo(-800);
+    if (STEPPER_L.distanceToGo() == 0){
+      STEPPER_R.setCurrentPosition(0);
+    STEPPER_L.setCurrentPosition(0);
+      mode = 1;
+    }else{
+      mode = 3;
+    }
+  }
+  
+    
+
+  STEPPER_R.run();
+  STEPPER_L.run();
 }
+
