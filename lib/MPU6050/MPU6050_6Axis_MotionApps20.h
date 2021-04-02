@@ -55,8 +55,8 @@ THE SOFTWARE.
 
         #define PROGMEM
         #define PGM_P  const char *
-        #define PSTR(str) (str)
-        #define F(x) x
+        //#define PSTR(str) (str)
+        //#define F(x) x
 
         typedef void prog_void;
         typedef char prog_char;

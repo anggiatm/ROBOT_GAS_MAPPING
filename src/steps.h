@@ -4,8 +4,9 @@
 class STEPS{
     public:
     STEPS();
-    void setStepPerMM(int step);
-    float setStep(float mm);
+    void initStepper();
+    void goTo(float x, float y, float h);
+    void run();
 };
 #endif
 
