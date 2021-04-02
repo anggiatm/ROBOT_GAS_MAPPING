@@ -11,6 +11,8 @@
 #include "I2Cdev.h"
 #include "MPU6050_6Axis_MotionApps20.h"
 
+#include <steps.h>
+
 
 
 #define DIR_R 32
@@ -31,6 +33,7 @@
 // AD0 low = 0x68 (default for SparkFun breakout and InvenSense evaluation board)
 // AD0 high = 0x69
 MPU6050 mpu;
+STEPS step;
 //MPU6050 mpu(0x69); // <-- use for AD0 high
 
 /* =========================================================================
@@ -138,6 +141,7 @@ bool ledState = 0;
 const int ledPin = 2;
 int x=1;
 int mode = 1;
+float error = 0;
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -191,6 +195,20 @@ String processor(const String& var){
       return "OFF";
     }
   }
+}
+
+int heading(){
+  //if (!dmpReady) return 0;
+  error = error - 0.00;
+  if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) {
+    mpu.dmpGetQuaternion(&q, fifoBuffer);
+    mpu.dmpGetGravity(&gravity, &q);
+    mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+    //Serial.print("heading");
+    //Serial.println((ypr[0] * 180/M_PI)+180);
+    return((ypr[0] * 180/M_PI)+180+error);
+  }
+  return((ypr[0] * 180/M_PI)+180+error);
 }
 
 
@@ -313,16 +331,39 @@ void loop() {
   digitalWrite(ledPin, ledState);
   x=x+1;
   ws.textAll(String(x));
-  //delay(1000);
+  
+  
+    // if (STEPPER_L.distanceToGo() == 0){
+    //   STEPPER_R.setCurrentPosition(0);
+    // STEPPER_L.setCurrentPosition(0);
+    //   mode = 2;
+    // }else{
+    //   mode = 1;
+    // }
 
-  // Change direction at the limits
-  //   if (STEPPER_R.distanceToGo() == 0){
-  //     STEPPER_R.moveTo(-STEPPER_R.currentPosition());
-  //   }
-	
-  //int move = 800;
-  if (mode == 1){
-    //int value = 800;
+  if (heading() != 200){
+    Serial.println(heading());
+    int diffAngel = 200 - heading();
+    float difMM = 3.14*84*diffAngel/360;
+    STEPPER_R.move(step.setStep(difMM));
+    STEPPER_L.move(step.setStep(-difMM));
+    //STEPPER_R.setCurrentPosition(0);
+    //STEPPER_L.setCurrentPosition(0);
+    Serial.println(difMM);
+    Serial.println(diffAngel);
+  }
+  Serial.println("run");
+  STEPPER_R.run();
+  STEPPER_L.run();
+}
+
+
+
+// keliling ban 226mm
+
+String movement(int x, int y, int h){
+  int curheading = heading();
+  if (heading() != h){
     STEPPER_R.moveTo(800);
     STEPPER_L.moveTo(800);
     if (STEPPER_L.distanceToGo() == 0){
@@ -356,21 +397,6 @@ void loop() {
       mode = 3;
     }
   }
-  
-    
-
-  STEPPER_R.run();
-  STEPPER_L.run();
-
-  
-    if (!dmpReady) return;
-    if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) {
-    
-    mpu.dmpGetQuaternion(&q, fifoBuffer);
-    mpu.dmpGetGravity(&gravity, &q);
-    mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-    Serial.println("heading");
-    Serial.print(ypr[0] * 180/M_PI);
-    }
 }
+
 
