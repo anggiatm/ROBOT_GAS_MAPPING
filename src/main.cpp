@@ -26,8 +26,8 @@
 
 STEPS step;
 HEADING head;
-COORDINATE c;
-NAVIGATION N;
+COORDINATE coor;
+NAVIGATION nav;
 
 
 // Replace with your network credentials
@@ -103,6 +103,7 @@ void setup(){
 
   step.initStepper();
   head.initHeading();
+  coor.initCoordinate();
 
 
   // Connect to Wi-Fi
@@ -133,8 +134,7 @@ void setup(){
   });
   // Start server
   server.begin();
-  c.setCoordinate(0,0);
-  c.setHeading(0);
+  
 }
 
 void loop() {
@@ -142,7 +142,6 @@ void loop() {
   //digitalWrite(ledPin, ledState);
   obstacle=obstacle+1;
   ws.textAll(String(obstacle));
-  
-  N.navigation(100,100);
+  nav.navigation(100,100);
 
 }

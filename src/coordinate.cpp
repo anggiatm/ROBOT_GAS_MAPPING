@@ -13,6 +13,11 @@ int Y_VALUE;
 
 int H_VALUE;
 
+void COORDINATE::initCoordinate(){
+    setCoordinate(0,0);
+    setHeading(0);
+}
+
 void COORDINATE::setCoordinate(int x, int y){
     X_VALUE = x;
     Y_VALUE = y;

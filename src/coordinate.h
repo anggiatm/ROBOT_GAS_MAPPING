@@ -3,6 +3,7 @@
 
 class COORDINATE{
     public:
+    void initCoordinate();
     void setCoordinate(int x, int y);
     void getCoordinate(int *x, int *y);
 
