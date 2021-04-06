@@ -53,57 +53,14 @@ void STEPS::initStepper(){
 }
 
 
-
-// bool STEPS::goTo(float x, float y, float h){
-//     if (sequence == 0){
-//         float diffAngle = abs((h - C.getHeading())/360);
-//         Serial.println(diffAngle);
-//         if(diffAngle > -HEADING_DEADBAND && diffAngle < HEADING_DEADBAND){
-//             // TARGET ANGLE TERPENUHI = LANGSUNG SUMBU X
-//             sequence = 2;
-//         } else{
-//             // TARGET ANGLE TIDAK TERPENUHI = GO TO HEADING
-//             sequence = 1;
-//         }
-//     }
-//     else if (sequence == 1){
-//         float
-//         if (round(HEAD.getHeading()) != h){
-//         int diffAngle = h - HEAD.getHeading();
-//         float diffMM = M_PI*84*diffAngle/360;
-//         STEPPER_R.move(diffMM*STEP_PER_MM);
-//         STEPPER_L.move(diffMM*STEP_PER_MM);
-//         sequence = 1;
-//         } else{
-//             STEPPER_R.setCurrentPosition(0);
-//             STEPPER_L.setCurrentPosition(0);
-//             sequence = 2;   
-//         }
-//     }
-    
-//     else if (sequence == 2){
-//         STEPPER_R.moveTo(-y*STEP_PER_MM);
-//         STEPPER_L.moveTo(y*STEP_PER_MM);
-//         if (STEPPER_R.distanceToGo() == 0 && STEPPER_L.distanceToGo() == 0){
-//             STEPPER_R.setCurrentPosition(0);
-//             STEPPER_L.setCurrentPosition(0);
-//             sequence = 0;
-//         } else {
-//             sequence = 2;
-//         }
-//     }
-// }
-
 bool STEPS::moveHeading(int setHeading){
     //bool mpu_active = false;
-
-    int current_heading;
-    COOR.getHeading(&current_heading);
+    COOR.getHeading(&_current_heading);
     
-    float diffAngle = abs(((float)setHeading - (float)current_heading)/(float)360);
+    _diffAngle = abs(((float)setHeading - (float)_current_heading)/(float)360);
     
 
-    if(diffAngle > -HEADING_DEADBAND && diffAngle < HEADING_DEADBAND){
+    if(_diffAngle > -HEADING_DEADBAND && _diffAngle < HEADING_DEADBAND){
         // TARGET ANGLE TERPENUHI = LANGSUNG SUMBU X
         STEPPER_R.setCurrentPosition(0);
         STEPPER_L.setCurrentPosition(0);
@@ -112,15 +69,15 @@ bool STEPS::moveHeading(int setHeading){
     }
     else{
         // TARGET ANGLE TIDAK TERPENUHI = GO TO HEADING
-        int h = HEAD.readHeading();
-        if (h != setHeading){
-            int diffAngle = setHeading - h;
+        _sensor_heading = HEAD.readHeading();
+        if (_sensor_heading != setHeading){
+            int diffAngle = setHeading - _sensor_heading;
             float diffMM = M_PI*84*diffAngle/360;
             STEPPER_R.move(diffMM*STEP_PER_MM);
             STEPPER_L.move(diffMM*STEP_PER_MM);
             STEPPER_R.run();
             STEPPER_L.run();
-            COOR.setHeading(h);
+            COOR.setHeading(_sensor_heading);
             return false;
         }
         else{

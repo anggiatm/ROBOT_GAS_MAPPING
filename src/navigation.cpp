@@ -14,6 +14,7 @@ uint8_t sequence = 0;
 int X_ACTUAL,Y_ACTUAL;
 
 
+
 //-------------SEQUENCE-------------------------//
 //      0 : CEK HEADING                         //
 //      1 : GO TO HEADING                       //
@@ -56,6 +57,15 @@ void NAVIGATION::navigation(int X_TARGET, int Y_TARGET){
             }
         }
     }
+}
+
+void NAVIGATION::heading(int16_t h){
+    CO.getHeading(&HEADING_ACTUAL);
+    while (HEADING_ACTUAL != h)
+    {
+        S.moveHeading(h);
+    }
+    
 }
 
     

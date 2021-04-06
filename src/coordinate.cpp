@@ -2,16 +2,12 @@
 #include "heading.h"
 #include "AccelStepper.h"
 
+
 #ifndef M_PI
     #define M_PI 3.14159265358979323846
 #endif
 
 //constructor
-
-int X_VALUE;
-int Y_VALUE;
-
-int H_VALUE;
 
 void COORDINATE::initCoordinate(){
     setCoordinate(0,0);
@@ -19,19 +15,19 @@ void COORDINATE::initCoordinate(){
 }
 
 void COORDINATE::setCoordinate(int x, int y){
-    X_VALUE = x;
-    Y_VALUE = y;
+    _X_VALUE = x;
+    _Y_VALUE = y;
 }
 
 void COORDINATE::getCoordinate(int *x_val, int *y_val){
-    *x_val = X_VALUE;
-    *y_val = Y_VALUE;
+    *x_val = _X_VALUE;
+    *y_val = _Y_VALUE;
 }
 
-void COORDINATE::setHeading(int h){
-    H_VALUE = h;
+void COORDINATE::setHeading(int16_t h){
+    _H_VALUE = h;
 }
 
-void COORDINATE::getHeading(int *h_val){
-    *h_val = H_VALUE;
+void COORDINATE::getHeading(int16_t *h_val){
+    *h_val = _H_VALUE;
 }

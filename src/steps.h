@@ -1,6 +1,8 @@
 #ifndef STEPS_H
 #define STEPS_H
 
+typedef signed short int16_t;
+
 class STEPS{
     public:
     STEPS();
@@ -9,6 +11,11 @@ class STEPS{
     void run();
     bool moveHeading(int setHeading);
     bool moveForward(int setX, int along);
+
+    private:
+    int16_t _current_heading;
+    int16_t _sensor_heading;
+    float _diffAngle;
 };
 #endif
 

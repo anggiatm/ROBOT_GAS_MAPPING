@@ -9,7 +9,7 @@
 #endif
 
 #define OUTPUT_READABLE_YAWPITCHROLL
-#define INTERRUPT_PIN 2            // use pin 2 on Arduino Uno & most boards
+#define INTERRUPT_PIN 5                // use pin 2 on Arduino Uno & most boards
 #define HEADING_CORRECTION 0
 
 
@@ -32,10 +32,10 @@ VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measure
 VectorFloat gravity;    // [x, y, z]            gravity vector
 float euler[3];         // [psi, theta, phi]    Euler angle container
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
-float ERROR = 0;
+//float ERROR = 0;
 
 // packet structure for InvenSense teapot demo
-uint8_t teapotPacket[14] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0x00, 0x00, '\r', '\n' };
+//uint8_t teapotPacket[14] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0x00, 0x00, '\r', '\n' };
 
 // ================================================================
 // ===               INTERRUPT DETECTION ROUTINE                ===
@@ -49,17 +49,17 @@ HEADING::HEADING(){
 }
 
 
-float HEADING::readHeading(){
-    ERROR = ERROR - HEADING_CORRECTION;
+int16_t HEADING::readHeading(){
+    //ERROR = ERROR - HEADING_CORRECTION;
     if (MPU.dmpGetCurrentFIFOPacket(fifoBuffer)) {
         MPU.dmpGetQuaternion(&q, fifoBuffer);
         MPU.dmpGetGravity(&gravity, &q);
         MPU.dmpGetYawPitchRoll(ypr, &q, &gravity);
-    //Serial.print("heading");
+    Serial.print("heading");
     //Serial.println((ypr[0] * 180/M_PI)+180);
-    return((ypr[0] * 180/M_PI)+180+ERROR);
+    return((ypr[0] * 180/M_PI)+180);
   }
-  return((ypr[0] * 180/M_PI)+180+ERROR);
+  //return((ypr[0] * 180/M_PI)+180);
 }
 
 void HEADING::initHeading(){
@@ -72,11 +72,11 @@ void HEADING::initHeading(){
     pinMode(INTERRUPT_PIN, INPUT);
 
     // verify connection
-    Serial.println(F("Testing device connections..."));
+    //Serial.println(F("Testing device connections..."));
     Serial.println(MPU.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
 
     // load and configure the DMP
-    Serial.println(F("Initializing DMP..."));
+    //Serial.println(F("Initializing DMP..."));
     devStatus = MPU.dmpInitialize();
 
     // supply your own gyro offsets here, scaled for min sensitivity
