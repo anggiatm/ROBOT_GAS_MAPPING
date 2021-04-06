@@ -5,8 +5,10 @@ class STEPS{
     public:
     STEPS();
     void initStepper();
-    void goTo(float x, float y, float h);
+    //bool goTo(float x, float y, float h);
     void run();
+    bool moveHeading(int setHeading);
+    bool moveForward(int setX, int along);
 };
 #endif
 

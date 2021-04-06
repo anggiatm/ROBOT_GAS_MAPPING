@@ -7,7 +7,9 @@
 #include <SPIFFS.h>
 
 #include <steps.h>
+#include <navigation.h>
 #include <heading.h>
+#include <coordinate.h>
 
 
 //#include <math.h>
@@ -24,6 +26,8 @@
 
 STEPS step;
 HEADING head;
+COORDINATE c;
+NAVIGATION N;
 
 
 // Replace with your network credentials
@@ -32,7 +36,7 @@ const char* password = "123456789";
 
 bool ledState = 0;
 const int ledPin = 2;
-int x=1;
+int obstacle=1;
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -129,58 +133,16 @@ void setup(){
   });
   // Start server
   server.begin();
+  c.setCoordinate(0,0);
+  c.setHeading(0);
 }
 
 void loop() {
   ws.cleanupClients();
-  digitalWrite(ledPin, ledState);
-  x=x+1;
-  ws.textAll(String(x));
+  //digitalWrite(ledPin, ledState);
+  obstacle=obstacle+1;
+  ws.textAll(String(obstacle));
+  
+  N.navigation(100,100);
 
-  step.goTo(0, 100, 200); //float x, float y, float heading
-  step.run();
 }
-
-
-
-
-
-// String movement(int x, int y, int h){
-//   int curheading = heading();
-//   if (heading() != h){
-//     STEPPER_R.moveTo(800);
-//     STEPPER_L.moveTo(800);
-//     if (STEPPER_L.distanceToGo() == 0){
-//       STEPPER_R.setCurrentPosition(0);
-//     STEPPER_L.setCurrentPosition(0);
-//       mode = 2;
-//     }else{
-//       mode = 1;
-//     }
-//   }else if(mode == 2){
-    
-
-//     STEPPER_R.moveTo(-800);
-//     STEPPER_L.moveTo(-800);
-//     if (STEPPER_L.distanceToGo() == 0){
-//       STEPPER_R.setCurrentPosition(0);
-//     STEPPER_L.setCurrentPosition(0);
-//       mode = 3;
-//     }else{
-//       mode = 2;
-//     }
-//   }else if(mode == 3){
-
-//     STEPPER_R.moveTo(800);
-//     STEPPER_L.moveTo(-800);
-//     if (STEPPER_L.distanceToGo() == 0){
-//       STEPPER_R.setCurrentPosition(0);
-//     STEPPER_L.setCurrentPosition(0);
-//       mode = 1;
-//     }else{
-//       mode = 3;
-//     }
-//   }
-// }
-
-

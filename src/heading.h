@@ -4,7 +4,7 @@
 class HEADING{
     public:
     HEADING();
-    float getHeading();
+    float readHeading();
     void initHeading();
 };
 #endif

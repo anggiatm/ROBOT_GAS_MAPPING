@@ -1,4 +1,5 @@
 #include "heading.h"
+#include "coordinate.h"
 #include "I2Cdev.h"
 #include "MPU6050_6Axis_MotionApps20.h"
 #include "Wire.h"
@@ -13,6 +14,7 @@
 
 
 MPU6050 MPU;
+COORDINATE C;
 
 // MPU control/status vars
 bool dmpReady = false;  // set true if DMP init was successful
@@ -45,7 +47,9 @@ void dmpDataReady() {
 
 HEADING::HEADING(){
 }
-float HEADING::getHeading(){
+
+
+float HEADING::readHeading(){
     ERROR = ERROR - HEADING_CORRECTION;
     if (MPU.dmpGetCurrentFIFOPacket(fifoBuffer)) {
         MPU.dmpGetQuaternion(&q, fifoBuffer);
