@@ -7,12 +7,12 @@ class STEPS{
     public:
     STEPS();
     void initStepper();
-    //bool goTo(float x, float y, float h);
     void run();
-    bool moveHeading(int setHeading);
-    bool moveForward(int setX, int along);
+    bool moveHeading(int16_t setHeading);
+    bool moveForward(int16_t setX, int16_t along);
 
     private:
+    int16_t _x, _y;
     int16_t _current_heading;
     int16_t _sensor_heading;
     float _diffAngle;

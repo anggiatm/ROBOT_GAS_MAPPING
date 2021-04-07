@@ -19,14 +19,13 @@
 //1mm = 800/226
 //1step = 0.2825 mm
 //1mm = 3.54 step
+
 #define STEP_PER_MM 3.54
 // keliling ban 226mm
 #define LENGHT_PER_ROTATION 84
 
 //HEADING DEADBAND IN PERCENTAGE 0.01*360
 #define HEADING_DEADBAND 0.005   
-
-//uint8_t sequence = 0;
 
 HEADING HEAD;
 COORDINATE COOR;
@@ -44,22 +43,17 @@ void STEPS::initStepper(){
     STEPPER_R.setMaxSpeed(400.0);
     STEPPER_R.setAcceleration(150.0);
     STEPPER_L.setPinsInverted (true, false, false); // (bool directionInvert=false, bool stepInvert=false, bool enableInvert=false)
-    //STEPPER_R.moveTo(800);
+
     STEPPER_L.setMaxSpeed(400.0);
     STEPPER_L.setAcceleration(150.0);
     STEPPER_L.setPinsInverted (false, false, false); // (bool directionInvert=false, bool stepInvert=false, bool enableInvert=false)
-    //STEPPER_L.moveTo(800);
 
 }
 
 
-bool STEPS::moveHeading(int setHeading){
-    //bool mpu_active = false;
+bool STEPS::moveHeading(int16_t setHeading){
     COOR.getHeading(&_current_heading);
-    
     _diffAngle = abs(((float)setHeading - (float)_current_heading)/(float)360);
-    
-
     if(_diffAngle > -HEADING_DEADBAND && _diffAngle < HEADING_DEADBAND){
         // TARGET ANGLE TERPENUHI = LANGSUNG SUMBU X
         STEPPER_R.setCurrentPosition(0);
@@ -87,13 +81,10 @@ bool STEPS::moveHeading(int setHeading){
             return true;
         }
     }
-    //Serial.println(current_heading);
-    
 }
 
-bool STEPS::moveForward(int setX, int along){
-    int x, y;
-    //
+bool STEPS::moveForward(int16_t setX, int16_t along){
+
     STEPPER_R.moveTo(-setX*STEP_PER_MM);
     STEPPER_L.moveTo(setX*STEP_PER_MM);
     //Serial.println("moveforward");
@@ -102,11 +93,11 @@ bool STEPS::moveForward(int setX, int along){
     if (STEPPER_R.distanceToGo() == 0 && STEPPER_L.distanceToGo() == 0){
         STEPPER_R.setCurrentPosition(0);
         STEPPER_L.setCurrentPosition(0);
-        COOR.getCoordinate(&x, &y);
+        COOR.getCoordinate(&_x, &_y);
         if (along == 0){
-            COOR.setCoordinate(x+setX, y);
+            COOR.setCoordinate(_x+setX, _y);
         } else if (along == 1){
-            COOR.setCoordinate(x, y+setX);
+            COOR.setCoordinate(_x, _y+setX);
         }
         return true;
     } else {

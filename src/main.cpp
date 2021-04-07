@@ -129,8 +129,6 @@ void initWebSocket() {
 
 String processor(const String& var){
   Serial.println(var);
-  
-
   if(var == "STATE"){
     if (ledState){
       return "ON";
@@ -188,5 +186,5 @@ void setup(){
 void loop() {
   ws.cleanupClients();
   digitalWrite(ledPin, ledState);
-  vTaskDelay(10);
+  //vTaskDelay(10);
 }

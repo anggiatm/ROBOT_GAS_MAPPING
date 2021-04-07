@@ -11,8 +11,6 @@
 COORDINATE CO;
 STEPS S;
 uint8_t sequence = 0;
-int X_ACTUAL,Y_ACTUAL;
-
 
 
 //-------------SEQUENCE-------------------------//
@@ -22,10 +20,10 @@ int X_ACTUAL,Y_ACTUAL;
 //      3 : ALONG Y (MAJU SUMBU Y)              //
 //----------------------------------------------//
 
-void NAVIGATION::navigation(int X_TARGET, int Y_TARGET){
+void NAVIGATION::navigation(int16_t X_TARGET, int16_t Y_TARGET){
     CO.getCoordinate(&X_ACTUAL ,&Y_ACTUAL);
     sequence = 0;
-    while(X_ACTUAL!=X_TARGET && Y_ACTUAL!= Y_TARGET && sequence !=4){
+    while(X_ACTUAL != X_TARGET && Y_ACTUAL != Y_TARGET && sequence !=4){
         if (sequence == 0){
             if (S.moveHeading(270)){
                 sequence = 1;

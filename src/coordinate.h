@@ -11,8 +11,8 @@ typedef signed short int16_t;
 class COORDINATE{
     public:
     void initCoordinate();
-    void setCoordinate(int x, int y);
-    void getCoordinate(int *x, int *y);
+    void setCoordinate(int16_t x, int16_t y);
+    void getCoordinate(int16_t *x, int16_t *y);
 
     void setHeading(int16_t h);
     void getHeading(int16_t *h);

@@ -14,12 +14,12 @@ void COORDINATE::initCoordinate(){
     setHeading(0);
 }
 
-void COORDINATE::setCoordinate(int x, int y){
+void COORDINATE::setCoordinate(int16_t x, int16_t y){
     _X_VALUE = x;
     _Y_VALUE = y;
 }
 
-void COORDINATE::getCoordinate(int *x_val, int *y_val){
+void COORDINATE::getCoordinate(int16_t *x_val, int16_t *y_val){
     *x_val = _X_VALUE;
     *y_val = _Y_VALUE;
 }
