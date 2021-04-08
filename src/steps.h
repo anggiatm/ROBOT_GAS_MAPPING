@@ -8,7 +8,7 @@ class STEPS{
     STEPS();
     void initStepper();
     void run();
-    bool moveHeading(int16_t setHeading);
+    void moveHeading(int16_t setHeading);
     bool moveForward(int16_t setX, int16_t along);
 
     private:
@@ -16,6 +16,7 @@ class STEPS{
     int16_t _current_heading;
     int16_t _sensor_heading;
     float _diffAngle;
+    long _diffMM;
 };
 #endif
 

@@ -1,26 +1,75 @@
-/*********
-  Rui Santos
-  Complete project details at https://RandomNerdTutorials.com/esp32-websocket-server-arduino/
-  The above copyright notice and this permission notice shall be included in all
-  copies or substantial portions of the Software.
-*********/
 
-// Import required libraries
 
-//#include <Arduino.h>
+/*****************************************************************************************************************************
+ * KALKULASI SUDUT PUTAR ROBOT / STEP PER MM
+ * -------------------------------------------------------------------------------------------------------------------------
+ * DIAMETER RODA (OD)                     : 50MM
+ * DIAMETER JARAK RODA KANAN & RODA KIRI  : 95MM
+ * SPEK STEPPER MOTOR                     : 1.8deg/Step = 200 STEP PER REVOLUTION
+ * MICROSTEPPING                          : 1/4
+ * MICROSTEPPING FULL ROTATION            : 200 * 4 = 800 STEP PER REVOLUTION
+ * RUMUS KELILING LIINGKARAN              : K = π * d
+ * ---------------------------------------------------------------------------------------------------------------------------
+ * PANJANG KELILING RODA                  : π * 50 = 157.07963267948966192313216916398 MM
+ * 
+ * STEP PER MM BERDASARKAN KELILING RODA  : MICROSTEPPING FULL ROTATION / PANJANG KELILING RODA
+ *                                          = 800 / 157.07963267948966192313216916398
+ *                                            5.0929581789406507446042804279203 STEPS PER MM
+ * ---------------------------------------------------------------------------------------------------------------------------
+ * KELILING DIAMETER RODA KANAN & KIRI    : π x 95 = 298.45130209103035765395112141155 MM
+ * FULL ROBOT SPIN (360deg) IN STEPS      : KELILING DIAMETER RODA KANAN & KIRI * STEP PER MM BERDASARKAN KELILING RODA
+ *                                          = 298.45130209103035765395112141155 * 5.0929581789406507446042804279203
+ *                                          = 1520 STEPS
+ * STEP PER DEGREE ROBOT ROTATION         : FULL ROBOT SPIN (360deg) IN STEPS / 360deg
+ *                                          = 1520 / 360
+ *                                          = 4.2222222222222222222222222222 STEP PER DEGREE
+ * 
+ * MM PER DEGREE SROBOT SPIN              : KELILING DIAMETER RODA KANAN & KIRI / 360
+ *                                          = 298.45130209103035765395112141155 / 360
+ *                                          = 0.82903139469730654903875311503208 MM PER DEGREE
+ * 
+********************************************************************************************************************************/
+
+
+#include <Arduino.h>
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include "SPIFFS.h"
+#include <SPIFFS.h>
+#include <ESP_FlexyStepper.h>
 #include "navigation.h"
 #include "coordinate.h"
 #include "heading.h"
-#include "steps.h"
+//#include "steps.h"
+
+#ifndef M_PI
+    #define M_PI 3.14159265358979323846
+#endif
+
+#define STEP_PER_MM 5.09295817894065074460
+#define MM_PER_DEGREE 0.5330382858376184
+
+//#define MM_PER_DEGREE 0.82903139469730654904
 
 NAVIGATION nav;
 COORDINATE cor;
 HEADING head;
-STEPS step;
+//STEPS step;
+
+const int DIR_R = 32;
+const int STEP_R = 33;
+const int DIR_L = 25;
+const int STEP_L = 26;
+
+// Speed settings
+const float SPEED_MM_PER_SECOND = 70;
+const float ACCELERATION_MM_PER_SECOND = 70;
+const float DECELERATION_MM_PER_SECOND = 70;
+
+
+// create the stepper motor object
+ESP_FlexyStepper MOTOR_R;
+ESP_FlexyStepper MOTOR_L;
 
 // Replace with your network credentials
 const char* ssid = "MIX";
@@ -32,7 +81,6 @@ const int ledPin = 2;
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
-
 
 String splitString(String data, char separator, int index){
   int found = 0;
@@ -61,6 +109,12 @@ void sendCoordinate(){
   ws.textAll(String("coordinate-value-x,y"));
 }
 
+void setHeading(int value){
+  float target = MM_PER_DEGREE*value;
+  MOTOR_R.setTargetPositionRelativeInMillimeters(target - MOTOR_R.getCurrentPositionInMillimeters());
+  MOTOR_L.setTargetPositionRelativeInMillimeters(target - MOTOR_L.getCurrentPositionInMillimeters());
+}
+
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
@@ -72,7 +126,8 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     if (command == "setheading"){
       Serial.println("SET HEADING");
       int val = value.toInt();
-      nav.heading(val);
+      setHeading(val);
+      //step.moveHeading(val);
     }
     
     else if (command == "getheading"){
@@ -143,13 +198,31 @@ void setup(){
   // Serial port for debugging purposes
   Serial.begin(115200);
   head.initHeading();
-  step.initStepper();
+  //step.initStepper();
   cor.initCoordinate();
 
   if(!SPIFFS.begin(true)){
     Serial.println("An Error has occurred while mounting SPIFFS");
     return;
   }
+
+  MOTOR_R.connectToPins(STEP_R, DIR_R);
+  MOTOR_L.connectToPins(STEP_L, DIR_L);
+  // set the speed and acceleration rates for the stepper motor
+  MOTOR_R.setStepsPerMillimeter(STEP_PER_MM);
+  MOTOR_L.setStepsPerMillimeter(STEP_PER_MM);
+
+  MOTOR_R.setSpeedInMillimetersPerSecond(SPEED_MM_PER_SECOND);
+  MOTOR_L.setSpeedInMillimetersPerSecond(SPEED_MM_PER_SECOND);
+
+  MOTOR_R.setAccelerationInMillimetersPerSecondPerSecond(ACCELERATION_MM_PER_SECOND);
+  MOTOR_L.setDecelerationInMillimetersPerSecondPerSecond(DECELERATION_MM_PER_SECOND);
+  // Not start the stepper instance as a service in the "background" as a separate task
+  // and the OS of the ESP will take care of invoking the processMovement() task regularily so you can do whatever you want in the loop function
+ 
+  
+  MOTOR_R.startAsService();
+  MOTOR_L.startAsService();
 
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, LOW);

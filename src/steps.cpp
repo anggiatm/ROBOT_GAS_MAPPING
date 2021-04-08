@@ -42,7 +42,7 @@ STEPS::STEPS(){
 void STEPS::initStepper(){
     STEPPER_R.setMaxSpeed(400.0);
     STEPPER_R.setAcceleration(150.0);
-    STEPPER_L.setPinsInverted (true, false, false); // (bool directionInvert=false, bool stepInvert=false, bool enableInvert=false)
+    STEPPER_R.setPinsInverted (true, false, false); // (bool directionInvert=false, bool stepInvert=false, bool enableInvert=false)
 
     STEPPER_L.setMaxSpeed(400.0);
     STEPPER_L.setAcceleration(150.0);
@@ -51,36 +51,43 @@ void STEPS::initStepper(){
 }
 
 
-bool STEPS::moveHeading(int16_t setHeading){
+void STEPS::moveHeading(int16_t setHeading){
     COOR.getHeading(&_current_heading);
-    _diffAngle = abs(((float)setHeading - (float)_current_heading)/(float)360);
+
+    while (setHeading != _current_heading)
+    {
+        _diffAngle = abs(((float)setHeading - (float)_current_heading)/(float)360);
     if(_diffAngle > -HEADING_DEADBAND && _diffAngle < HEADING_DEADBAND){
         // TARGET ANGLE TERPENUHI = LANGSUNG SUMBU X
         STEPPER_R.setCurrentPosition(0);
         STEPPER_L.setCurrentPosition(0);
         COOR.setHeading(setHeading);
-        return true;
+        //return true;
     }
     else{
         // TARGET ANGLE TIDAK TERPENUHI = GO TO HEADING
         _sensor_heading = HEAD.readHeading();
         if (_sensor_heading != setHeading){
-            int diffAngle = setHeading - _sensor_heading;
-            float diffMM = M_PI*84*diffAngle/360;
-            STEPPER_R.move(diffMM*STEP_PER_MM);
-            STEPPER_L.move(diffMM*STEP_PER_MM);
+            //int diffAngle = setHeading - _sensor_heading;
+            _diffMM = M_PI*84*_diffAngle/360*STEP_PER_MM;
+            STEPPER_R.move(_diffMM);
+            STEPPER_L.move(_diffMM);
             STEPPER_R.run();
             STEPPER_L.run();
             COOR.setHeading(_sensor_heading);
-            return false;
+            //return false;
         }
         else{
             STEPPER_R.setCurrentPosition(0);
             STEPPER_L.setCurrentPosition(0);
             COOR.setHeading(setHeading);
-            return true;
+            //return true;
         }
     }
+}
+    
+
+    
 }
 
 bool STEPS::moveForward(int16_t setX, int16_t along){

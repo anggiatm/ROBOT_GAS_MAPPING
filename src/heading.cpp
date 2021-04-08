@@ -55,7 +55,7 @@ int16_t HEADING::readHeading(){
         MPU.dmpGetQuaternion(&q, fifoBuffer);
         MPU.dmpGetGravity(&gravity, &q);
         MPU.dmpGetYawPitchRoll(ypr, &q, &gravity);
-    Serial.print("heading");
+    //Serial.print("heading");
     //Serial.println((ypr[0] * 180/M_PI)+180);
     return((ypr[0] * 180/M_PI)+180);
   }
