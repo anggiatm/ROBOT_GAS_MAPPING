@@ -30,6 +30,12 @@
  * 
 ********************************************************************************************************************************/
 
+/*** KALKULASI & OPTIMASI RAM **
+ * TOTAL RAM      : 327680 byte
+ * 
+ * TASK
+ * 
+ * */
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -37,8 +43,6 @@
 #include <ESPAsyncWebServer.h>
 #include <SPIFFS.h>
 #include <ESP_FlexyStepper.h>
-//#include "navigation.h"
-//#include "coordinate.h"
 #include <driver/i2c.h>
 #include <esp_log.h>
 #include <esp_err.h>
@@ -47,8 +51,7 @@
 #include "MPU6050.h"
 #include "MPU6050_6Axis_MotionApps20.h"
 #include "sdkconfig.h"
-//#include "heading.h"
-//#include "steps.h"
+
 #define PIN_SDA 21
 #define PIN_CLK 22
 
@@ -57,16 +60,17 @@
 #endif
 
 #define STEP_PER_MM 3.637827270671893389
-#define MM_PER_DEGREE 0.82903139469730654904
+//#define MM_PER_DEGREE 0.82903139469730654904   //95mm Diameter
+#define MM_PER_DEGREE 0.84648468721724984481     //97mm Diameter
 
 #define DIR_R 32
 #define STEP_R 33
 #define DIR_L 25
 #define STEP_L 26
 
-#define SPEED_MM_PER_SECOND 70
-#define ACCELERATION_MM_PER_SECOND 70
-#define DECELERATION_MM_PER_SECOND 70
+#define SPEED_MM_PER_SECOND 35
+#define ACCELERATION_MM_PER_SECOND 140
+#define DECELERATION_MM_PER_SECOND 140
 
 //#define MM_PER_DEGREE 0.82903139469730654904
 
@@ -76,16 +80,17 @@
 ESP_FlexyStepper MOTOR_R;
 ESP_FlexyStepper MOTOR_L;
 
-TaskHandle_t MPU_TaskInit_Handle;
-TaskHandle_t MPU_TaskRun_Handle;
+//TaskHandle_t MPU_TaskInit_Handle;
+//TaskHandle_t MPU_TaskRun_Handle;
+TaskHandle_t Client_Task_Handle;
 
-Quaternion q;           // [w, x, y, z]         quaternion container
-VectorFloat gravity;    // [x, y, z]            gravity vector
-float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
-uint16_t packetSize = 42;    // expected DMP packet size (default is 42 bytes)
-uint16_t fifoCount;     // count of all bytes currently in FIFO
-uint8_t fifoBuffer[64]; // FIFO storage buffer
-uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
+// Quaternion q;           // [w, x, y, z]         quaternion container
+// VectorFloat gravity;    // [x, y, z]            gravity vector
+// float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
+// uint16_t packetSize = 42;    // expected DMP packet size (default is 42 bytes)
+// uint16_t fifoCount;     // count of all bytes currently in FIFO
+// uint8_t fifoBuffer[64]; // FIFO storage buffer
+// uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
 
 // Replace with your network credentials
 const char* ssid = "MIX";
@@ -121,38 +126,19 @@ void sendHeading(){
   ws.textAll(String("heading-value"));
 }
 
-void sendCoordinate(){
-  ws.textAll(String("coordinate-value-x,y"));
-}
-
-void clearPosition(){
-  while(!MOTOR_R.motionComplete() && !MOTOR_L.motionComplete()){
-    Serial.println("wait for complete");
-  }
+void forward(int target){
   MOTOR_R.setCurrentPositionInMillimeters(0);
   MOTOR_L.setCurrentPositionInMillimeters(0);
-}
-
-void forward(int target){
-  MOTOR_R.setTargetPositionRelativeInMillimeters(target - MOTOR_R.getCurrentPositionInMillimeters());
-  MOTOR_L.setTargetPositionRelativeInMillimeters(-target - MOTOR_L.getCurrentPositionInMillimeters());
+  MOTOR_R.setTargetPositionInMillimeters(target);
+  MOTOR_L.setTargetPositionInMillimeters(target);
 }
 
 void setHeading(int value){
   float target = value*MM_PER_DEGREE;
-  MOTOR_R.setTargetPositionRelativeInMillimeters(-target - MOTOR_R.getCurrentPositionInMillimeters());
-  MOTOR_L.setTargetPositionRelativeInMillimeters(-target - MOTOR_L.getCurrentPositionInMillimeters());
-}
-
-void setCoordinate(int x, int y){
-  setHeading(180);
-  clearPosition();
-  // forward(x);
-  // clearPosition();
-//   setHeading(-90);
-//   clearPosition();
-//   forward(y);
-//   clearPosition();
+  MOTOR_R.setCurrentPositionInMillimeters(0);
+  MOTOR_L.setCurrentPositionInMillimeters(0);
+  MOTOR_R.setTargetPositionInMillimeters(-target);
+  MOTOR_L.setTargetPositionInMillimeters(target);
 }
 
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
@@ -161,38 +147,19 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     data[len] = 0;
     String command = splitString((char*)data, '=', 0);
     String value = splitString((char*)data, '=', 1);
-    //Serial.println(command);
-    //Serial.println(value);
+
     if (command == "setheading"){
+      //vTaskSuspend(MPU_TaskRun_Handle);
       Serial.println("SET HEADING");
       int val = value.toInt();
       setHeading(val);
-      clearPosition();
-      //step.moveHeading(val);
     }
     
     else if (command == "getheading"){
       Serial.println("GET HEADING");
       forward(100);
-      clearPosition();
+      //clearPosition();
       //sendHeading();
-    }
-    
-    else if (command == "setcoordinate"){
-      Serial.println("SET COORDINATE");
-      int x = (splitString(value, ',', 0)).toInt();
-      int y = (splitString(value, ',', 1)).toInt();
-      Serial.println(x);
-      Serial.println(y);
-      setHeading(90);
-      clearPosition();
-      forward(x);
-      clearPosition();
-    }
-    
-    else if (command == "getcoordinate"){
-      Serial.println("GET COORDINATE");
-      sendCoordinate();
     }
     
     else {
@@ -241,63 +208,55 @@ String processor(const String& var){
   }
 }
 
-void task_display(void*){
-	MPU6050 mpu = MPU6050();
-	mpu.initialize();
-	mpu.dmpInitialize();
+// void task_display(void*){
+// 	MPU6050 mpu = MPU6050();
+// 	mpu.initialize();
+// 	mpu.dmpInitialize();
+// 	// This need to be setup individually
+// 	mpu.setXGyroOffset(220);
+// 	mpu.setYGyroOffset(76);
+// 	mpu.setZGyroOffset(-85);
+// 	mpu.setZAccelOffset(1788);
+// 	mpu.setDMPEnabled(true);
 
-	// This need to be setup individually
-	mpu.setXGyroOffset(220);
-	mpu.setYGyroOffset(76);
-	mpu.setZGyroOffset(-85);
-	mpu.setZAccelOffset(1788);
+// 	while(1){
+//     mpuIntStatus = mpu.getIntStatus();
+// 		fifoCount = mpu.getFIFOCount();
+//     if ((mpuIntStatus & 0x10) || fifoCount == 1024) {
+//       mpu.resetFIFO();
+// 	  }
+//     else if (mpuIntStatus & 0x02) {
+//       // wait for correct available data length, should be a VERY short wait
+//       while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
+//       mpu.getFIFOBytes(fifoBuffer, packetSize);
+// 	 		mpu.dmpGetQuaternion(&q, fifoBuffer);
+// 			mpu.dmpGetGravity(&gravity, &q);
+// 			mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+// 			printf("\n YAW:", ypr[0] * 180/M_PI);
+// 	  }
+// 		//vTaskDelay(100/portTICK_PERIOD_MS);
+// 	}
+// 	vTaskDelete(NULL);
+// }
 
-	mpu.setDMPEnabled(true);
+// void task_initI2C(void *ignore) {
+// 	i2c_config_t conf;
+// 	conf.mode = I2C_MODE_MASTER;
+// 	conf.sda_io_num = (gpio_num_t)PIN_SDA;
+// 	conf.scl_io_num = (gpio_num_t)PIN_CLK;
+// 	conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
+// 	conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
+// 	conf.master.clk_speed = 400000;
+// 	ESP_ERROR_CHECK(i2c_param_config(I2C_NUM_0, &conf));
+// 	ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0));
+// 	vTaskDelete(NULL);
+// }
 
+void task_web_client(void*){
 	while(1){
-	    mpuIntStatus = mpu.getIntStatus();
-		// get current FIFO count
-		fifoCount = mpu.getFIFOCount();
-
-	    if ((mpuIntStatus & 0x10) || fifoCount == 1024) {
-	        // reset so we can continue cleanly
-	        mpu.resetFIFO();
-
-	    // otherwise, check for DMP data ready interrupt frequently)
-	    } else if (mpuIntStatus & 0x02) {
-	        // wait for correct available data length, should be a VERY short wait
-	        while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
-
-	        // read a packet from FIFO
-
-	        mpu.getFIFOBytes(fifoBuffer, packetSize);
-	 		mpu.dmpGetQuaternion(&q, fifoBuffer);
-			mpu.dmpGetGravity(&gravity, &q);
-			mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-			printf("YAW: %3.1f, ", ypr[0] * 180/M_PI);
-			printf("PITCH: %3.1f, ", ypr[1] * 180/M_PI);
-			printf("ROLL: %3.1f \n", ypr[2] * 180/M_PI);
-	    }
-
-	    //Best result is to match with DMP refresh rate
-	    // Its last value in components/MPU6050/MPU6050_6Axis_MotionApps20.h file line 310
-	    // Now its 0x13, which means DMP is refreshed with 10Hz rate
-		vTaskDelay(100/portTICK_PERIOD_MS);
-	}
-	vTaskDelete(NULL);
-}
-
-void task_initI2C(void *ignore) {
-	i2c_config_t conf;
-	conf.mode = I2C_MODE_MASTER;
-	conf.sda_io_num = (gpio_num_t)PIN_SDA;
-	conf.scl_io_num = (gpio_num_t)PIN_CLK;
-	conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
-	conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
-	conf.master.clk_speed = 400000;
-	ESP_ERROR_CHECK(i2c_param_config(I2C_NUM_0, &conf));
-	ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0));
-	vTaskDelete(NULL);
+    ws.cleanupClients();
+    //digitalWrite(ledPin, ledState);
+  }
 }
 
 void setup(){
@@ -313,11 +272,11 @@ void setup(){
   MOTOR_L.setStepsPerMillimeter(STEP_PER_MM);
   MOTOR_R.setSpeedInMillimetersPerSecond(SPEED_MM_PER_SECOND);
   MOTOR_L.setSpeedInMillimetersPerSecond(SPEED_MM_PER_SECOND);
-  MOTOR_R.setAccelerationInMillimetersPerSecondPerSecond(ACCELERATION_MM_PER_SECOND);
-  MOTOR_L.setDecelerationInMillimetersPerSecondPerSecond(DECELERATION_MM_PER_SECOND);
+  //MOTOR_R.setAccelerationInMillimetersPerSecondPerSecond(ACCELERATION_MM_PER_SECOND);
+  //MOTOR_L.setDecelerationInMillimetersPerSecondPerSecond(DECELERATION_MM_PER_SECOND);
 
   pinMode(ledPin, OUTPUT);
-  digitalWrite(ledPin, LOW);
+  
   
   // Connect to Wi-Fi
   WiFi.begin(ssid, password);
@@ -328,6 +287,7 @@ void setup(){
 
   // Print ESP Local IP Address
   Serial.println(WiFi.localIP());
+
 
   initWebSocket();
 
@@ -346,15 +306,14 @@ void setup(){
 
   MOTOR_R.startAsService();
   MOTOR_L.startAsService();
-  xTaskCreate(task_initI2C, "MPU_INIT_TASK", 2048, NULL, 1, &MPU_TaskInit_Handle);
-  xTaskCreate(task_display, "MPU_RUN_TASK", 8192, NULL, 1, &MPU_TaskRun_Handle);
+  //xTaskCreate(task_initI2C, "MPU_INIT_TASK", 2048, NULL, 1, &MPU_TaskInit_Handle);
+  //xTaskCreate(task_display, "MPU_RUN_TASK", 8192, NULL, 1, &MPU_TaskRun_Handle);
   server.begin();
-  
+  xTaskCreate(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle);
+  digitalWrite(ledPin, HIGH);
   
 }
 
 void loop() {
-  ws.cleanupClients();
-  digitalWrite(ledPin, ledState);
-  //vTaskDelay(10);
+  //ws.cleanupClients();
 }
