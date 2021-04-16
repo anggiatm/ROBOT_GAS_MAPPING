@@ -19,9 +19,10 @@ body {
   margin: 0;
 }
 .content {
-  padding: 30px;
-  max-width: 600px;
-  margin: 0 auto;
+  position: absolute;
+  right: 0;
+  padding: 20px;
+  max-width: 450px;
 }
 .card {
   background-color: #F8F7F9;;
