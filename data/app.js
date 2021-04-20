@@ -71,11 +71,13 @@ var gateway = `ws://192.168.43.27/ws`;
 var websocket;
 
 var con = "----";
-var cor_X = 0;
-var cor_Y = 0;
+var cor_x = 0;
+var cor_y = 0;
 var angle = 0;
 var head_x = 0;
 var head_y = 0;
+
+
 
 window.addEventListener('load', onLoad);
 
@@ -112,14 +114,9 @@ function onLoad(event) {
 
 function initButton() {
   document.getElementById('button_set_heading').addEventListener('click', setHeading);
-  document.getElementById('button_get_heading').addEventListener('click', getHeading);
-  document.getElementById('button_set_coordinate').addEventListener('click', setCoordinate);
-  document.getElementById('button_get_coordinate').addEventListener('click', getCoordinate);
+  document.getElementById('button_set_forward').addEventListener('click', setForward);
+  document.getElementById('button_read_sensor').addEventListener('click', readSensor);
   document.getElementById('button').addEventListener('click', toggle);
-}
-
-function toggle(){
-  websocket.send('led=toggle');
 }
 
 function setHeading(){
@@ -127,47 +124,51 @@ function setHeading(){
   websocket.send('setheading='+heading_value);
 }
 
-function getHeading(){
-  websocket.send('getheading');
+function setForward(){
+  var x = document.getElementById('input_set_forward').value;
+  websocket.send('setforward='+x);
 }
 
-function setCoordinate(){
-  var x = document.getElementById('input_set_x').value;
-  var y = document.getElementById('input_set_y').value;
-  websocket.send('setcoordinate='+x+','+y);
+function readSensor(){
+  websocket.send('readsensor');
 }
 
-function getCoordinate(){
-  websocket.send('getcoordinate');
-}
+// function toggle(){
+//   websocket.send('led=toggle');
+// }
 
+
+
+// function getHeading(){
+//   websocket.send('getheading');
+// }
 
 
 
 function setup() {
-  let cnv = createCanvas(850, 550);
-  cnv.position(20, 90);
+  let cnv = createCanvas(850, 560);
+  cnv.position(20, 80);
   background("#42413F");
-  //angleMode(RAD);
-  //initWebSocket();
 }
 
 function draw() {
+  var robot_cor_x = cor_x + 70;
+  var robot_cor_y = -cor_y + 500;
   fill(255);
-  //ellipse(sensorValue, height / 2, 20, 20);
   noStroke();
   textSize(15);
   textStyle(NORMAL);
   text("Connection :"+con, 20, 20);
-  text("Coordinate :"+ cor_X + ", " + cor_Y, 350, 20);  // offset from edge 30
+  text("Coordinate (x, y):"+ cor_x + ", " + cor_y, 350, 20);  // offset from edge 30
   text("Heading :"+ angle, 700, 20);
+  
   stroke(0);
-  ellipse(cor_X+30, -cor_Y+520, 20, 20);
-  head_x = 20*(sin(angle));
-  head_y = -sqrt(pow(20,2)-pow(head_x,2));
-  line(cor_X+30, -cor_Y+520, (cor_X+30)+head_x, cor_Y+520+head_y);
-
-  //text(Math.sin(45)*, 200,200);
+  angleMode(DEGREES);
+  strokeWeight(1);
+  circle(robot_cor_x, robot_cor_y, 20);
+  translate(robot_cor_x, robot_cor_y);
+  rotate(angle);
+  rect(-1, 4, 2, -30);
 }
 
 

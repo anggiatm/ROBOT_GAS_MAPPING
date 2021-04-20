@@ -7,7 +7,7 @@
   <style></style>
 <title>ESP Web Server</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" type="text/css" href="style.css">
+<link rel="stylesheet" type="text/css" href="bootstrap-grid.min.css">
 
 </head>
 
@@ -15,25 +15,83 @@
 <body>
   <script src="p5.min.js" type="text/javascript"></script>
   <script src="app.js" type="text/javascript"></script>
-  <div class="topnav">
+
+  <div class="bootstrap-wrapper">
+    <div class="container">
+      <div class="row">
+        <h1>ROBOT GAS</h1>
+      </div>
+      <div class="row">
+        <div class="col-md-8">
+          MAP
+        </div>
+        <div class="col-md-4">
+          <div class="row">
+            <h2>robot control</h2>
+          </div>
+          <div class="row">
+            <div class="col-md-6">
+              heading
+              <input type="text" id="input_set_heading" placeholder="0-360">
+              <button id="button_set_heading">set heading</button>
+              <hr>
+
+              forward
+              <input type="text" id="input_set_forward" placeholder="0-1000mm">
+              <button id="button_set_forward">set forward</button>
+              <hr>
+
+              read sensor
+              <button id="button_read_sensor">read sensor</button>
+              <hr>
+            </div>
+            <div class="col-md-6">
+              current heading
+              <input type="text" id="input_get_heading" placeholder="0-360">
+              <hr>
+
+              current coordinate
+              <input type="text" id="input_get_x" placeholder="0-360">
+              <input type="text" id="input_get_y" placeholder="0-360">
+              <hr>
+
+              sensor data
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- <div class="topnav">
     <h1>ROBOT GAS MAPPING</h1>
   </div>
   <div class="content">
+    <h2>ROBOT CONTROL</h2>
     <div class="card">
-      <h2>Output - GPIO 2</h2>
-      <input type="text" id="input_set_heading" placeholder="0-360">
-      <button id="button_set_heading">set heading</button>
-      <button id="button_get_heading">get heading</button>
+      <h2>robot control</h2>
+    </div> -->
+    <!-- <h2>ROBOT CONTROL</h2>
+      <div class="card">
+      <div class="col-left">
+        <input type="text" id="input_set_heading" placeholder="0-360">
+        <button id="button_set_heading">set heading</button>
 
-      <hr>
-      <p>Set Coordinate</p>
-      <label for="input_set_x">X</label>
+        <label for="input_set_x">X</label>
       <input type="text" id="input_set_x" placeholder="sumbu x">
 
       <label for="input_set_y">Y</label>
       <input type="text" id="input_set_y" placeholder="sumbu y">
 
       <button id="button_set_coordinate">set coordinate</button>
+      </div>
+      <div class="col-right">
+        <button id="button_get_heading">get heading</button>
+      </div>
+
+
+      <hr>
+      <p>Set Coordinate</p>
+      
       <button id="button_get_coordinate">get coordinate</button>
 
 
@@ -43,9 +101,8 @@
       <p>
         <button id="button" class="button">Toggle</button>
       </p>
-    </div>
-  </div>
+    </div> -->
+  <!-- </div> -->
 
 </body>
-<!-- <script src="websocket.js" type="text/javascript"></script> -->
 </html>

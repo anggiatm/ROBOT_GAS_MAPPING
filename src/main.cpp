@@ -151,13 +151,20 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     if (command == "setheading"){
       //vTaskSuspend(MPU_TaskRun_Handle);
       Serial.println("SET HEADING");
-      int val = value.toInt();
-      setHeading(val);
+      int val_head = value.toInt();
+      setHeading(val_head);
     }
     
-    else if (command == "getheading"){
-      Serial.println("GET HEADING");
-      forward(100);
+    else if (command == "setforward"){
+      Serial.println("SET FORWARD");
+      int val_forward = value.toInt();
+      forward(val_forward);
+      //clearPosition();
+      //sendHeading();
+    }
+
+    else if (command == "readsensor"){
+      Serial.println("READ SENSOR");
       //clearPosition();
       //sendHeading();
     }

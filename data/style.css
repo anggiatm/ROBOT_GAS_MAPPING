@@ -3,13 +3,13 @@ html {
   text-align: center;
 }
 h1 {
-  font-size: 1.8rem;
+  font-size: 1.5rem;
   color: white;
 }
 h2{
   font-size: 1.5rem;
   font-weight: bold;
-  color: #143642;
+  color: #3c4244;
 }
 .topnav {
   overflow: hidden;
@@ -57,4 +57,13 @@ body {
    font-size: 1.5rem;
    color:#8c8c8c;
    font-weight: bold;
+ }
+ .col-left{
+  width: 50%;
+  float:left
+ }
+
+ .col-right{
+  width: 50%;
+  float:right
  }
