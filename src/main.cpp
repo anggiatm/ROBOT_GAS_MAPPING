@@ -43,21 +43,29 @@
 #include <ESPAsyncWebServer.h>
 #include <SPIFFS.h>
 #include <ESP_FlexyStepper.h>
-#include <driver/i2c.h>
-#include <esp_log.h>
-#include <esp_err.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-#include "MPU6050.h"
+// #include <driver/i2c.h>
+// #include <esp_log.h>
+// #include <esp_err.h>
+// #include <freertos/FreeRTOS.h>
+// #include <freertos/task.h>
 #include "MPU6050_6Axis_MotionApps20.h"
-#include "sdkconfig.h"
+// #include "sdkconfig.h"
+#include <VL53L0X.h>
+#include <ESP32Servo.h>
 
-#define PIN_SDA 21
-#define PIN_CLK 22
+#if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+    #include "Wire.h"
+#endif
 
 #ifndef M_PI
     #define M_PI 3.14159265358979323846
 #endif
+
+#define INTERRUPT_PIN 2
+#define OUTPUT_READABLE_YAWPITCHROLL
+
+//#define PIN_SDA 21
+//#define PIN_CLK 22
 
 #define STEP_PER_MM 3.637827270671893389
 //#define MM_PER_DEGREE 0.82903139469730654904   //95mm Diameter
@@ -74,30 +82,34 @@
 
 //#define MM_PER_DEGREE 0.82903139469730654904
 
-//NAVIGATION nav;
-//COORDINATE cor;
-//HEADING head;
 ESP_FlexyStepper MOTOR_R;
 ESP_FlexyStepper MOTOR_L;
 
 //TaskHandle_t MPU_TaskInit_Handle;
-//TaskHandle_t MPU_TaskRun_Handle;
+TaskHandle_t MPU_TaskRun_Handle;
 TaskHandle_t Client_Task_Handle;
 
-// Quaternion q;           // [w, x, y, z]         quaternion container
-// VectorFloat gravity;    // [x, y, z]            gravity vector
-// float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
-// uint16_t packetSize = 42;    // expected DMP packet size (default is 42 bytes)
-// uint16_t fifoCount;     // count of all bytes currently in FIFO
-// uint8_t fifoBuffer[64]; // FIFO storage buffer
-// uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
+VL53L0X sensor;
+Servo motor;
 
-// Replace with your network credentials
+MPU6050 mpu;
+
+bool dmpReady = false;
+uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
+uint8_t devStatus;
+uint16_t packetSize;
+uint16_t fifoCount;     // count of all bytes currently in FIFO
+uint8_t fifoBuffer[64]; // FIFO storage buffer
+
+int angle;
+int angle_old = 0;
+
+Quaternion q;           // [w, x, y, z]         quaternion container
+VectorFloat gravity;    // [x, y, z]            gravity vector
+float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
+
 const char* ssid = "MIX";
 const char* password = "123456789";
-
-bool ledState = 0;
-const int ledPin = 2;
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -119,7 +131,7 @@ String splitString(String data, char separator, int index){
 }
 
 void notifyClients() {
-  ws.textAll(String(ledState));
+  ws.textAll(String("ledState"));
 }
 
 void sendHeading(){
@@ -206,7 +218,7 @@ void initWebSocket() {
 String processor(const String& var){
   Serial.println(var);
   if(var == "STATE"){
-    if (ledState){
+    if (1){
       return "ON";
     }
     else{
@@ -215,62 +227,96 @@ String processor(const String& var){
   }
 }
 
-// void task_display(void*){
-// 	MPU6050 mpu = MPU6050();
-// 	mpu.initialize();
-// 	mpu.dmpInitialize();
-// 	// This need to be setup individually
-// 	mpu.setXGyroOffset(220);
-// 	mpu.setYGyroOffset(76);
-// 	mpu.setZGyroOffset(-85);
-// 	mpu.setZAccelOffset(1788);
-// 	mpu.setDMPEnabled(true);
-
-// 	while(1){
-//     mpuIntStatus = mpu.getIntStatus();
-// 		fifoCount = mpu.getFIFOCount();
-//     if ((mpuIntStatus & 0x10) || fifoCount == 1024) {
-//       mpu.resetFIFO();
-// 	  }
-//     else if (mpuIntStatus & 0x02) {
-//       // wait for correct available data length, should be a VERY short wait
-//       while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
-//       mpu.getFIFOBytes(fifoBuffer, packetSize);
-// 	 		mpu.dmpGetQuaternion(&q, fifoBuffer);
-// 			mpu.dmpGetGravity(&gravity, &q);
-// 			mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-// 			printf("\n YAW:", ypr[0] * 180/M_PI);
-// 	  }
-// 		//vTaskDelay(100/portTICK_PERIOD_MS);
-// 	}
-// 	vTaskDelete(NULL);
-// }
-
-// void task_initI2C(void *ignore) {
-// 	i2c_config_t conf;
-// 	conf.mode = I2C_MODE_MASTER;
-// 	conf.sda_io_num = (gpio_num_t)PIN_SDA;
-// 	conf.scl_io_num = (gpio_num_t)PIN_CLK;
-// 	conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
-// 	conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
-// 	conf.master.clk_speed = 400000;
-// 	ESP_ERROR_CHECK(i2c_param_config(I2C_NUM_0, &conf));
-// 	ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0));
-// 	vTaskDelete(NULL);
-// }
 
 void task_web_client(void*){
 	while(1){
     ws.cleanupClients();
+    vTaskDelay(1);
     //digitalWrite(ledPin, ledState);
+  }
+}
+volatile bool mpuInterrupt = false;
+void dmpDataReady() {
+    mpuInterrupt = true;
+}
+void task_display(void *pvParameters){
+  (void) pvParameters;
+  while (true){
+    if (!dmpReady) return;
+    if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { 
+      mpu.dmpGetQuaternion(&q, fifoBuffer);
+      mpu.dmpGetGravity(&gravity, &q);
+      mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+      angle = ypr[0] * 180/M_PI;
+      if (angle != angle_old){
+        Serial.println(angle);
+        angle_old = angle;
+      }
+    }
   }
 }
 
 void setup(){
+  #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+    Wire.begin();
+    Wire.setClock(400000); 
+  #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
+    Fastwire::setup(400, true);
+  #endif
+
   Serial.begin(115200);
+  motor.attach(23);
+  motor.write(98); 
   if(!SPIFFS.begin(true)){
     Serial.println("An Error has occurred while mounting SPIFFS");
     return;
+  }
+
+  sensor.setTimeout(500);
+  if (!sensor.init()){
+      Serial.println("Failed to detect and initialize sensor!");
+      while (1) {}
+  }
+    
+  // reduce timing budget to 20 ms (default is about 33 ms)
+  sensor.setMeasurementTimingBudget(20000);
+
+  // initialize device
+  Serial.println(F("Initializing I2C devices..."));
+  mpu.initialize();
+  pinMode(INTERRUPT_PIN, INPUT);
+
+  Serial.println(F("Testing device connections..."));
+  Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
+
+  Serial.println(F("Initializing DMP..."));
+  devStatus = mpu.dmpInitialize();
+
+  mpu.setXGyroOffset(220);
+  mpu.setYGyroOffset(76);
+  mpu.setZGyroOffset(-85);
+  mpu.setZAccelOffset(1788); // 1688 factory default for my test chip
+
+  if (devStatus == 0) {
+      // Calibration Time: generate offxsets and calibrate our MPU6050
+      mpu.CalibrateAccel(6);
+      mpu.CalibrateGyro(6);
+      mpu.PrintActiveOffsets();
+      Serial.println(F("Enabling DMP..."));
+      mpu.setDMPEnabled(true);
+
+      Serial.print(F("Enabling interrupt detection (Arduino external interrupt "));
+      Serial.print(digitalPinToInterrupt(INTERRUPT_PIN));
+      Serial.println(F(")..."));
+      attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), dmpDataReady, RISING);
+      mpuIntStatus = mpu.getIntStatus();
+      Serial.println(F("DMP ready! Waiting for first interrupt..."));
+      dmpReady = true;
+      packetSize = mpu.dmpGetFIFOPacketSize();
+  } else {
+      Serial.print(F("DMP Initialization failed (code "));
+      Serial.print(devStatus);
+      Serial.println(F(")"));
   }
 
   MOTOR_R.connectToPins(STEP_R, DIR_R);
@@ -282,8 +328,7 @@ void setup(){
   //MOTOR_R.setAccelerationInMillimetersPerSecondPerSecond(ACCELERATION_MM_PER_SECOND);
   //MOTOR_L.setDecelerationInMillimetersPerSecondPerSecond(DECELERATION_MM_PER_SECOND);
 
-  pinMode(ledPin, OUTPUT);
-  
+  //pinMode(ledPin, OUTPUT);
   
   // Connect to Wi-Fi
   WiFi.begin(ssid, password);
@@ -295,7 +340,6 @@ void setup(){
   // Print ESP Local IP Address
   Serial.println(WiFi.localIP());
 
-
   initWebSocket();
 
   // Route for root / web page
@@ -303,24 +347,43 @@ void setup(){
     request->send(SPIFFS, "/index.html", String(), false, processor);
   });
 
+  server.on("/bootstrap-grid.min.css", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/bootstrap-grid.min.css");
+  });
+
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/style.css");
   });
 
-  server.on("/websocket.js", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/websocket.js");
+  server.on("/p5.min.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/p5.min.js");
+  });
+
+  server.on("/app.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/app.js");
   });
 
   MOTOR_R.startAsService();
   MOTOR_L.startAsService();
-  //xTaskCreate(task_initI2C, "MPU_INIT_TASK", 2048, NULL, 1, &MPU_TaskInit_Handle);
-  //xTaskCreate(task_display, "MPU_RUN_TASK", 8192, NULL, 1, &MPU_TaskRun_Handle);
+  xTaskCreate(task_display, "MPU_RUN_TASK", 8192, NULL, 1, &MPU_TaskRun_Handle);
   server.begin();
   xTaskCreate(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle);
-  digitalWrite(ledPin, HIGH);
+  //digitalWrite(ledPin, HIGH);
+  
+  delay(3000);
+  motor.write(100);
   
 }
 
 void loop() {
-  //ws.cleanupClients();
 }
+      //vTaskDelay(10/portTICK_PERIOD_MS);
+	  // }
+		//vTaskDelay(100/portTICK_PERIOD_MS);
+    
+  // }
+  
+  // Serial.println(getAccReadings().c_str());
+  // delay(200);
+  //ws.textAll(getAccReadings().c_str());
+  //ws.cleanupClients();

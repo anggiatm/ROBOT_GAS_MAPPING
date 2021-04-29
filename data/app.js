@@ -116,7 +116,7 @@ function initButton() {
   document.getElementById('button_set_heading').addEventListener('click', setHeading);
   document.getElementById('button_set_forward').addEventListener('click', setForward);
   document.getElementById('button_read_sensor').addEventListener('click', readSensor);
-  document.getElementById('button').addEventListener('click', toggle);
+  //document.getElementById('button').addEventListener('click', toggle);
 }
 
 function setHeading(){
