@@ -1,7 +1,7 @@
 
 
 /*****************************************************************************************************************************
- * KALKULASI SUDUT PUTAR ROBOT / STEP PER MM
+ * ----------------------------- KALKULASI SUDUT PUTAR ROBOT / STEP PER MM ----------------------------------------------------
  * -------------------------------------------------------------------------------------------------------------------------
  * DIAMETER RODA (OD)                     : 70MM
  * DIAMETER JARAK RODA KANAN & RODA KIRI  : 95MM
@@ -30,12 +30,11 @@
  * 
 ********************************************************************************************************************************/
 
-/*** KALKULASI & OPTIMASI RAM **
- * TOTAL RAM      : 327680 byte
- * 
- * TASK
- * 
- * */
+/**
+ * LIST TASK
+ * TASK 1 MOTOR R
+ * TASK 2 MOTOR L
+*/
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -43,6 +42,7 @@
 #include <ESPAsyncWebServer.h>
 #include <SPIFFS.h>
 #include <ESP_FlexyStepper.h>
+// #include "Arduino_FreeRTOS.h"
 // #include <driver/i2c.h>
 // #include <esp_log.h>
 // #include <esp_err.h>
@@ -91,7 +91,6 @@ TaskHandle_t Client_Task_Handle;
 
 VL53L0X sensor;
 Servo motor;
-
 MPU6050 mpu;
 
 bool dmpReady = false;
@@ -103,6 +102,7 @@ uint8_t fifoBuffer[64]; // FIFO storage buffer
 
 int angle;
 int angle_old = 0;
+int count;
 
 Quaternion q;           // [w, x, y, z]         quaternion container
 VectorFloat gravity;    // [x, y, z]            gravity vector
@@ -122,9 +122,9 @@ String splitString(String data, char separator, int index){
 
   for(int i=0; i<=maxIndex && found<=index; i++){
     if(data.charAt(i)==separator || i==maxIndex){
-        found++;
-        strIndex[0] = strIndex[1]+1;
-        strIndex[1] = (i == maxIndex) ? i+1 : i;
+      found++;
+      strIndex[0] = strIndex[1]+1;
+      strIndex[1] = (i == maxIndex) ? i+1 : i;
     }
   }
   return found>index ? data.substring(strIndex[0], strIndex[1]) : "";
@@ -153,6 +153,22 @@ void setHeading(int value){
   MOTOR_L.setTargetPositionInMillimeters(target);
 }
 
+void scanWall(){
+  // count = 0;
+  // while (count != 360){
+  //   angle = getAngle();
+  //   if (angle != angle_old){
+  //     Serial.print(angle);
+  //     Serial.print(",");
+  //     Serial.print(sensor.readRangeSingleMillimeters());
+  //     Serial.println(",");
+  //     angle_old = angle;
+  //     count = count+1;
+  //   }
+  //   motor.write(94);
+  // }
+}
+
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
@@ -177,6 +193,7 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
 
     else if (command == "readsensor"){
       Serial.println("READ SENSOR");
+      scanWall();
       //clearPosition();
       //sendHeading();
     }
@@ -227,12 +244,10 @@ String processor(const String& var){
   }
 }
 
-
 void task_web_client(void*){
 	while(1){
     ws.cleanupClients();
     vTaskDelay(1);
-    //digitalWrite(ledPin, ledState);
   }
 }
 volatile bool mpuInterrupt = false;
@@ -241,7 +256,8 @@ void dmpDataReady() {
 }
 void task_display(void *pvParameters){
   (void) pvParameters;
-  while (true){
+  while (dmpReady){
+    
     if (!dmpReady) return;
     if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { 
       mpu.dmpGetQuaternion(&q, fifoBuffer);
@@ -249,7 +265,9 @@ void task_display(void *pvParameters){
       mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
       angle = ypr[0] * 180/M_PI;
       if (angle != angle_old){
-        Serial.println(angle);
+         Serial.println(angle);
+        Serial.print(" - ");
+        Serial.println(sensor.readRangeSingleMillimeters());
         angle_old = angle;
       }
     }
@@ -298,21 +316,19 @@ void setup(){
   mpu.setZAccelOffset(1788); // 1688 factory default for my test chip
 
   if (devStatus == 0) {
-      // Calibration Time: generate offxsets and calibrate our MPU6050
-      mpu.CalibrateAccel(6);
-      mpu.CalibrateGyro(6);
-      mpu.PrintActiveOffsets();
-      Serial.println(F("Enabling DMP..."));
-      mpu.setDMPEnabled(true);
-
-      Serial.print(F("Enabling interrupt detection (Arduino external interrupt "));
-      Serial.print(digitalPinToInterrupt(INTERRUPT_PIN));
-      Serial.println(F(")..."));
-      attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), dmpDataReady, RISING);
-      mpuIntStatus = mpu.getIntStatus();
-      Serial.println(F("DMP ready! Waiting for first interrupt..."));
-      dmpReady = true;
-      packetSize = mpu.dmpGetFIFOPacketSize();
+    mpu.CalibrateAccel(6);
+    mpu.CalibrateGyro(6);
+    mpu.PrintActiveOffsets();
+    Serial.println(F("Enabling DMP..."));
+    mpu.setDMPEnabled(true);
+    Serial.print(F("Enabling interrupt detection (Arduino external interrupt "));
+    Serial.print(digitalPinToInterrupt(INTERRUPT_PIN));
+    Serial.println(F(")..."));
+    attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), dmpDataReady, RISING);
+    mpuIntStatus = mpu.getIntStatus();
+    Serial.println(F("DMP ready! Waiting for first interrupt..."));
+    dmpReady = true;
+    packetSize = mpu.dmpGetFIFOPacketSize();
   } else {
       Serial.print(F("DMP Initialization failed (code "));
       Serial.print(devStatus);
@@ -369,21 +385,9 @@ void setup(){
   server.begin();
   xTaskCreate(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle);
   //digitalWrite(ledPin, HIGH);
-  
   delay(3000);
-  motor.write(100);
-  
+  motor.write(103);
 }
 
 void loop() {
 }
-      //vTaskDelay(10/portTICK_PERIOD_MS);
-	  // }
-		//vTaskDelay(100/portTICK_PERIOD_MS);
-    
-  // }
-  
-  // Serial.println(getAccReadings().c_str());
-  // delay(200);
-  //ws.textAll(getAccReadings().c_str());
-  //ws.cleanupClients();
