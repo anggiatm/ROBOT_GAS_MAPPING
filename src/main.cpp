@@ -182,7 +182,6 @@ void scanWall(){
     angle = getAngle();
     if (angle != angle_old){
       root[String(angle)] = String(sensor.readRangeSingleMillimeters());
-      // doc[String(angle)] = String(sensor.readRangeSingleMillimeters());
       // Serial.print(angle);
       // Serial.print(",");
       // Serial.print(sensor.readRangeSingleMillimeters());
@@ -193,7 +192,7 @@ void scanWall(){
   motor.write(98);
   size_t len = serializeJson(root, buffer);  // serialize to buffer
   ws.textAll(buffer, len); // send buffer to web socket
-  // Serial.println(buffer);
+  Serial.println(buffer);
   // serializeJson(doc, Serial);
 }
 
@@ -240,8 +239,9 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     }
 
     else if (command == "readsensor"){
-      Serial.println("READ SENSOR");
+      Serial.println("DEBUG : Reading Sensor..........");
       scanWall();
+      Serial.println("DEBUG : Read Sensor Complete..........");
       //clearPosition();
       //sendHeading();
     }

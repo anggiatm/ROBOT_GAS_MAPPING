@@ -100,14 +100,16 @@ function onMessage(event) {
   var data = JSON.parse(event.data);
   for (var i =0; i<360; i++){
     wall[i] = data.i;
+    console.log(data.i);
   }
 
-  for (var j=0; j<=wall.length(); j++){
-    console.log(wall[j]);
-  }
+  // for (var j=0; j<=wall.length; j++){
+  //   console.log(wall[j]);
+  // }
   
   document.getElementById('state').innerHTML = event.data;
 }
+
 function onLoad(event) {
   initWebSocket();
   initButton();
