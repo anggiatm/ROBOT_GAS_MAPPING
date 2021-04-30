@@ -52,6 +52,7 @@
 // #include "sdkconfig.h"
 #include <VL53L0X.h>
 #include <ESP32Servo.h>
+#include <ArduinoJSON.h>
 
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     #include "Wire.h"
@@ -93,6 +94,11 @@ VL53L0X sensor;
 Servo motor;
 MPU6050 mpu;
 
+// StaticJsonDocument<9216> doc;
+DynamicJsonDocument doc(9216); // fixed size
+JsonObject root = doc.to<JsonObject>();
+char buffer[9216]; // create temp buffer
+
 bool dmpReady = false;
 uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
 uint8_t devStatus;
@@ -102,7 +108,7 @@ uint8_t fifoBuffer[64]; // FIFO storage buffer
 
 int angle;
 int angle_old = 0;
-int count;
+uint16_t count;
 
 Quaternion q;           // [w, x, y, z]         quaternion container
 VectorFloat gravity;    // [x, y, z]            gravity vector
@@ -153,21 +159,63 @@ void setHeading(int value){
   MOTOR_L.setTargetPositionInMillimeters(target);
 }
 
-void scanWall(){
-  // count = 0;
-  // while (count != 360){
-  //   angle = getAngle();
-  //   if (angle != angle_old){
-  //     Serial.print(angle);
-  //     Serial.print(",");
-  //     Serial.print(sensor.readRangeSingleMillimeters());
-  //     Serial.println(",");
-  //     angle_old = angle;
-  //     count = count+1;
-  //   }
-  //   motor.write(94);
-  // }
+int getAngle(){
+    int mapa;
+    mpu.dmpGetCurrentFIFOPacket(fifoBuffer);
+    mpu.dmpGetQuaternion(&q, fifoBuffer);
+    mpu.dmpGetGravity(&gravity, &q);
+    mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+    int raw = (ypr[0] * 57.2958)+180;
+    if (raw<=180){
+        mapa = map(raw, 180, 0, 0, 180);
+    }
+    else {
+        mapa = map(raw, 359, 181, 181, 359);
+    }
+    return mapa;
 }
+
+void scanWall(){
+  count = 0;
+  motor.write(93);
+  while (count <= 360){
+    angle = getAngle();
+    if (angle != angle_old){
+      root[String(angle)] = String(sensor.readRangeSingleMillimeters());
+      // doc[String(angle)] = String(sensor.readRangeSingleMillimeters());
+      // Serial.print(angle);
+      // Serial.print(",");
+      // Serial.print(sensor.readRangeSingleMillimeters());
+      angle_old = angle;
+      count = count+1;
+    }
+  }
+  motor.write(98);
+  size_t len = serializeJson(root, buffer);  // serialize to buffer
+  ws.textAll(buffer, len); // send buffer to web socket
+  // Serial.println(buffer);
+  // serializeJson(doc, Serial);
+}
+
+// void task_display(void *pvParameters){
+//   (void) pvParameters;
+//   while (dmpReady){
+    
+//     if (!dmpReady) return;
+//     if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { 
+//       mpu.dmpGetQuaternion(&q, fifoBuffer);
+//       mpu.dmpGetGravity(&gravity, &q);
+//       mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+//       angle = ypr[0] * 180/M_PI;
+//       if (angle != angle_old){
+//          Serial.println(angle);
+//         Serial.print(" - ");
+//         Serial.println(sensor.readRangeSingleMillimeters());
+//         angle_old = angle;
+//       }
+//     }
+//   }
+// }
 
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
@@ -254,25 +302,7 @@ volatile bool mpuInterrupt = false;
 void dmpDataReady() {
     mpuInterrupt = true;
 }
-void task_display(void *pvParameters){
-  (void) pvParameters;
-  while (dmpReady){
-    
-    if (!dmpReady) return;
-    if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { 
-      mpu.dmpGetQuaternion(&q, fifoBuffer);
-      mpu.dmpGetGravity(&gravity, &q);
-      mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-      angle = ypr[0] * 180/M_PI;
-      if (angle != angle_old){
-         Serial.println(angle);
-        Serial.print(" - ");
-        Serial.println(sensor.readRangeSingleMillimeters());
-        angle_old = angle;
-      }
-    }
-  }
-}
+
 
 void setup(){
   #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
@@ -381,12 +411,12 @@ void setup(){
 
   MOTOR_R.startAsService();
   MOTOR_L.startAsService();
-  xTaskCreate(task_display, "MPU_RUN_TASK", 8192, NULL, 1, &MPU_TaskRun_Handle);
+  // xTaskCreate(task_display, "MPU_RUN_TASK", 8192, NULL, 1, &MPU_TaskRun_Handle);
   server.begin();
   xTaskCreate(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle);
   //digitalWrite(ledPin, HIGH);
   delay(3000);
-  motor.write(103);
+  motor.write(98);
 }
 
 void loop() {

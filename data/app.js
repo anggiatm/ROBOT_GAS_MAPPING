@@ -76,8 +76,7 @@ var cor_y = 0;
 var angle = 0;
 var head_x = 0;
 var head_y = 0;
-
-
+var wall = [];
 
 window.addEventListener('load', onLoad);
 
@@ -98,14 +97,16 @@ function onClose(event) {
   setTimeout(initWebSocket, 2000);
 }
 function onMessage(event) {
-  var state;
-  if (event.data == "1"){
-    state = "ON";
+  var data = JSON.parse(event.data);
+  for (var i =0; i<360; i++){
+    wall[i] = data.i;
   }
-  else{
-    state = "OFF";
+
+  for (var j=0; j<=wall.length(); j++){
+    console.log(wall[j]);
   }
-  document.getElementById('state').innerHTML = state;
+  
+  document.getElementById('state').innerHTML = event.data;
 }
 function onLoad(event) {
   initWebSocket();
