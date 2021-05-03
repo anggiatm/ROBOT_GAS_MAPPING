@@ -77,6 +77,8 @@ var angle = 0;
 var head_x = 0;
 var head_y = 0;
 var wall = [];
+var scale = 0.5;
+scanDataAvailable = 0;
 
 window.addEventListener('load', onLoad);
 
@@ -98,16 +100,21 @@ function onClose(event) {
 }
 function onMessage(event) {
   var data = JSON.parse(event.data);
-  for (var i =0; i<360; i++){
-    wall[i] = data.i;
-    console.log(data.i);
+  var keys = Object.keys(data);
+  for (var j=0; j<360; j++){
+    if(keys[j] != "voc" && keys[j] != "co2" && keys[j] != "asap" && keys[j] != "temp" && keys[j] != "hum"){
+      var name = keys[j];
+      var strIndex = String(name);
+      var splitIndex = strIndex.split("a");
+      var intIndex = parseInt(splitIndex[1]);
+      
+      var value = data[name];
+      wall[intIndex] = value;
+    }
   }
-
-  // for (var j=0; j<=wall.length; j++){
-  //   console.log(wall[j]);
-  // }
-  
-  document.getElementById('state').innerHTML = event.data;
+  document.getElementById('state').innerHTML = wall;
+  scanDataAvailable = 1;
+  //document.getElementById('state').innerHTML = event.data;
 }
 
 function onLoad(event) {
@@ -146,6 +153,10 @@ function readSensor(){
 //   websocket.send('getheading');
 // }
 
+function drawScanValue(){
+  
+}
+
 
 
 function setup() {
@@ -165,6 +176,25 @@ function draw() {
   text("Coordinate (x, y):"+ cor_x + ", " + cor_y, 350, 20);  // offset from edge 30
   text("Heading :"+ angle, 700, 20);
   
+  if (wall.length > 1){
+    stroke(255);
+    strokeWeight(2);
+    angleMode(RADIANS);
+    for (var i=0; i<wall.length; i++){
+      var a = (i * 0.0174533);
+      var num = parseInt(wall[i]);
+      if (num){
+        var x = ((sin(a) * num * 0.3) + robot_cor_x);
+        var y = ((cos(a) * num * 0.3) + robot_cor_y);
+      }
+      else {
+        console.log("DEBUG : Array kosong/error di index #"+i);
+      }
+      point (x , y);
+    }
+    wall = [];
+  }
+
   stroke(0);
   angleMode(DEGREES);
   strokeWeight(1);
@@ -172,6 +202,9 @@ function draw() {
   translate(robot_cor_x, robot_cor_y);
   rotate(angle);
   rect(-1, 4, 2, -30);
+ 
+  
+  
 }
 
 

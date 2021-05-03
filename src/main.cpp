@@ -181,7 +181,7 @@ void scanWall(){
   while (count <= 360){
     angle = getAngle();
     if (angle != angle_old){
-      root[String(angle)] = String(sensor.readRangeSingleMillimeters());
+      root["a"+String(angle)] = sensor.readRangeSingleMillimeters();
       // Serial.print(angle);
       // Serial.print(",");
       // Serial.print(sensor.readRangeSingleMillimeters());
@@ -190,6 +190,11 @@ void scanWall(){
     }
   }
   motor.write(98);
+  root["voc"] = 0.0;
+  root["co2"] = 0.0;
+  root["asap"] = 0.0;
+  root["temp"] = 0.0;
+  root["hum"] = 0.0;
   size_t len = serializeJson(root, buffer);  // serialize to buffer
   ws.textAll(buffer, len); // send buffer to web socket
   Serial.println(buffer);
