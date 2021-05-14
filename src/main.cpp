@@ -66,7 +66,7 @@
 #define OUTPUT_READABLE_YAWPITCHROLL
 
 //#define PIN_SDA 21
-//#define PIN_CLK 22
+//#define PIN_SCL 22
 
 #define STEP_PER_MM 3.637827270671893389
 //#define MM_PER_DEGREE 0.82903139469730654904   //95mm Diameter
@@ -182,9 +182,9 @@ void scanWall(){
     angle = getAngle();
     if (angle != angle_old){
       root["a"+String(angle)] = sensor.readRangeSingleMillimeters();
-      // Serial.print(angle);
-      // Serial.print(",");
-      // Serial.print(sensor.readRangeSingleMillimeters());
+      Serial.print(angle);
+      Serial.print(",");
+      Serial.print(sensor.readRangeSingleMillimeters());
       angle_old = angle;
       count = count+1;
     }
