@@ -61,6 +61,9 @@ public:
   void stopService(void);
   bool isStartedAsService(void);
 
+  void suspendService(void); // DITAMBAHIN KU AING
+  void resumeService(void);  // DITAMBAHIN KU AING
+
   //IO setup and helper / debugging functions
   void connectToPins(byte stepPinNumber, byte directionPinNumber=255);
   void setBrakePin(byte brakePin, byte activeState = ESP_FlexyStepper::ACTIVE_HIGH);

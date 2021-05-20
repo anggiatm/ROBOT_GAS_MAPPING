@@ -82,7 +82,7 @@
 #define DECELERATION_MM_PER_SECOND 140
 
 #define SERVO_NEUTRAL 99
-#define SERVO_RUN_CW 93
+#define SERVO_RUN_CW 92
 
 //#define MM_PER_DEGREE 0.82903139469730654904
 
@@ -98,9 +98,9 @@ Servo motor;
 MPU6050 mpu;
 
 // StaticJsonDocument<9216> doc;
-DynamicJsonDocument doc(5120); // fixed size 9216
+DynamicJsonDocument doc(9216); // fixed size 9216
 JsonObject root = doc.to<JsonObject>();
-char buffer[5120]; // create temp buffer
+char buffer[9216]; // create temp buffer
 
 bool dmpReady = false;
 uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
@@ -200,8 +200,7 @@ void scanWall(){
   root["hum"] = 0.0;
   size_t len = serializeJson(root, buffer);  // serialize to buffer
   ws.textAll(buffer, len); // send buffer to web socket
-  
-  Serial.println(buffer);
+  // Serial.println(buffer);
   // serializeJson(doc, Serial);
 }
 
@@ -248,9 +247,13 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     }
 
     else if (command == "readsensor"){
+      MOTOR_R.suspendService();
+      MOTOR_L.suspendService();
       Serial.println("DEBUG : Reading Sensor..........");
       scanWall();
       Serial.println("DEBUG : Read Sensor Complete..........");
+      MOTOR_R.resumeService();
+      MOTOR_L.resumeService();
       //clearPosition();
       //sendHeading();
     }
@@ -419,7 +422,8 @@ void setup(){
   });
 
   MOTOR_R.startAsService();
-  MOTOR_L.startAsService();
+  MOTOR_L.startAsService();      
+
   // xTaskCreate(task_display, "MPU_RUN_TASK", 8192, NULL, 1, &MPU_TaskRun_Handle);
   server.begin();
   xTaskCreate(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle);

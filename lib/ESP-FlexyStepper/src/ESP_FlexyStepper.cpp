@@ -103,6 +103,15 @@ void ESP_FlexyStepper::startAsService(void)
       &this->xHandle);              /* Task handle. */
 }
 
+// DITAMBAHIN KU AING
+void ESP_FlexyStepper::suspendService(void){
+  vTaskSuspend(xHandle);
+}
+// DITAMBAHIN KU AING
+void ESP_FlexyStepper::resumeService(void){
+  vTaskResume(xHandle);
+}
+
 void ESP_FlexyStepper::taskRunner(void *parameter)
 {
   ESP_FlexyStepper *stepperRef = static_cast<ESP_FlexyStepper *>(parameter);
