@@ -81,6 +81,9 @@
 #define ACCELERATION_MM_PER_SECOND 140
 #define DECELERATION_MM_PER_SECOND 140
 
+#define SERVO_NEUTRAL 99
+#define SERVO_RUN_CW 93
+
 //#define MM_PER_DEGREE 0.82903139469730654904
 
 ESP_FlexyStepper MOTOR_R;
@@ -95,9 +98,9 @@ Servo motor;
 MPU6050 mpu;
 
 // StaticJsonDocument<9216> doc;
-DynamicJsonDocument doc(9216); // fixed size
+DynamicJsonDocument doc(5120); // fixed size 9216
 JsonObject root = doc.to<JsonObject>();
-char buffer[9216]; // create temp buffer
+char buffer[5120]; // create temp buffer
 
 bool dmpReady = false;
 uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
@@ -177,19 +180,19 @@ int getAngle(){
 
 void scanWall(){
   count = 0;
-  motor.write(93);
+  motor.write(SERVO_RUN_CW);
   while (count <= 360){
     angle = getAngle();
     if (angle != angle_old){
       root["a"+String(angle)] = sensor.readRangeSingleMillimeters();
-      Serial.print(angle);
-      Serial.print(",");
-      Serial.print(sensor.readRangeSingleMillimeters());
+      Serial.println(angle);
+      // Serial.print(",");
+      // Serial.println(sensor.readRangeSingleMillimeters());
       angle_old = angle;
       count = count+1;
     }
   }
-  motor.write(98);
+  motor.write(SERVO_NEUTRAL);
   root["voc"] = 0.0;
   root["co2"] = 0.0;
   root["asap"] = 0.0;
@@ -197,6 +200,7 @@ void scanWall(){
   root["hum"] = 0.0;
   size_t len = serializeJson(root, buffer);  // serialize to buffer
   ws.textAll(buffer, len); // send buffer to web socket
+  
   Serial.println(buffer);
   // serializeJson(doc, Serial);
 }
@@ -319,7 +323,7 @@ void setup(){
 
   Serial.begin(115200);
   motor.attach(23);
-  motor.write(98); 
+  motor.write(SERVO_NEUTRAL); 
   if(!SPIFFS.begin(true)){
     Serial.println("An Error has occurred while mounting SPIFFS");
     return;
@@ -421,7 +425,6 @@ void setup(){
   xTaskCreate(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle);
   //digitalWrite(ledPin, HIGH);
   delay(3000);
-  motor.write(98);
 }
 
 void loop() {
