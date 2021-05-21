@@ -91,25 +91,29 @@ ESP_FlexyStepper::~ESP_FlexyStepper()
 }
 
 //TODO: use https://github.com/nrwiersma/ESP8266Scheduler/blob/master/examples/simple/simple.ino for ESP8266
-void ESP_FlexyStepper::startAsService(void)
+void ESP_FlexyStepper::startAsService(int core)
 {
-  disableCore0WDT(); // we have to disable the Watchdog timer to prevent it from rebooting the ESP all the time another option would be to add a vTaskDelay but it would slow down the stepper
-  xTaskCreate(
+   if ( (!core_0_wdt_was_disabled_from_flexyStepper) && (core!=1) ){
+     disableCore0WDT(); // we have to disable the Watchdog timer to prevent it from rebooting the ESP all the time another option would be to add a vTaskDelay but it would slow down the stepper
+     core_0_wdt_was_disabled_from_flexyStepper=1;
+   } //If WDT has not been disabled previously and core 1 is not selected
+  xTaskCreateUniversal(
       ESP_FlexyStepper::taskRunner, /* Task function. */
       "FlexyStepper",               /* String with name of task (by default max 16 characters long) */
       2000,                         /* Stack size in bytes. */
       this,                         /* Parameter passed as input of the task */
       1,                            /* Priority of the task, 1 seems to work just fine for us */
-      &this->xHandle);              /* Task handle. */
+      &this->xHandle,
+      core);              /* Task handle. */
 }
 
 // DITAMBAHIN KU AING
 void ESP_FlexyStepper::suspendService(void){
-  vTaskSuspend(xHandle);
+  vTaskSuspend(this->xHandle);
 }
 // DITAMBAHIN KU AING
 void ESP_FlexyStepper::resumeService(void){
-  vTaskResume(xHandle);
+  vTaskResume(this->xHandle);
 }
 
 void ESP_FlexyStepper::taskRunner(void *parameter)

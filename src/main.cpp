@@ -62,7 +62,7 @@
     #define M_PI 3.14159265358979323846
 #endif
 
-#define INTERRUPT_PIN 2
+#define INTERRUPT_PIN 5
 #define OUTPUT_READABLE_YAWPITCHROLL
 
 //#define PIN_SDA 21
@@ -82,7 +82,11 @@
 #define DECELERATION_MM_PER_SECOND 140
 
 #define SERVO_NEUTRAL 99
-#define SERVO_RUN_CW 92
+#define SERVO_RUN_CW 91
+#define SERVO_RUN_ALIGNMENT 96
+
+#define HALL_SENSOR 19  // INVERTED !!! || ON = 0 || OFF = 1
+#define LED 2
 
 //#define MM_PER_DEGREE 0.82903139469730654904
 
@@ -112,6 +116,7 @@ uint8_t fifoBuffer[64]; // FIFO storage buffer
 int angle;
 int angle_old = 0;
 uint16_t count;
+bool hall_detect;
 
 Quaternion q;           // [w, x, y, z]         quaternion container
 VectorFloat gravity;    // [x, y, z]            gravity vector
@@ -180,16 +185,29 @@ int getAngle(){
 
 void scanWall(){
   count = 0;
+  int hall = 0;
+  int old_hall = 0;
+
   motor.write(SERVO_RUN_CW);
-  while (count <= 360){
+  while (count <= 1){
+    hall = digitalRead(HALL_SENSOR);
+      if (hall != old_hall){
+        old_hall = hall;
+        count = count + 1;
+      }
     angle = getAngle();
     if (angle != angle_old){
       root["a"+String(angle)] = sensor.readRangeSingleMillimeters();
+      angle_old = angle;
+
       Serial.println(angle);
+
+      
       // Serial.print(",");
       // Serial.println(sensor.readRangeSingleMillimeters());
-      angle_old = angle;
-      count = count+1;
+      
+      // count = count + 1;
+      // hall_detect = digitalRead(HALL_SENSOR);
     }
   }
   motor.write(SERVO_NEUTRAL);
@@ -308,13 +326,23 @@ void task_web_client(void*){
 	while(1){
     ws.cleanupClients();
     vTaskDelay(1);
-  }
+  } 
 }
 volatile bool mpuInterrupt = false;
 void dmpDataReady() {
     mpuInterrupt = true;
 }
 
+void sensorAlignment(){
+  hall_detect = digitalRead(HALL_SENSOR);
+  if (hall_detect){
+    motor.write(SERVO_RUN_ALIGNMENT);
+  }
+  while(hall_detect){
+    hall_detect = digitalRead(HALL_SENSOR);
+  }
+  motor.write(SERVO_NEUTRAL);
+}
 
 void setup(){
   #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
@@ -331,6 +359,10 @@ void setup(){
     Serial.println("An Error has occurred while mounting SPIFFS");
     return;
   }
+
+  pinMode(HALL_SENSOR, INPUT);
+  pinMode(LED, OUTPUT);
+  sensorAlignment();
 
   sensor.setTimeout(500);
   if (!sensor.init()){
@@ -386,7 +418,7 @@ void setup(){
   //MOTOR_R.setAccelerationInMillimetersPerSecondPerSecond(ACCELERATION_MM_PER_SECOND);
   //MOTOR_L.setDecelerationInMillimetersPerSecondPerSecond(DECELERATION_MM_PER_SECOND);
 
-  //pinMode(ledPin, OUTPUT);
+  
   
   // Connect to Wi-Fi
   WiFi.begin(ssid, password);
@@ -421,14 +453,15 @@ void setup(){
     request->send(SPIFFS, "/app.js");
   });
 
-  MOTOR_R.startAsService();
-  MOTOR_L.startAsService();      
+  MOTOR_R.startAsService(0);
+  MOTOR_L.startAsService(1);      
 
   // xTaskCreate(task_display, "MPU_RUN_TASK", 8192, NULL, 1, &MPU_TaskRun_Handle);
   server.begin();
   xTaskCreate(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle);
   //digitalWrite(ledPin, HIGH);
   delay(3000);
+  digitalWrite(LED, HIGH);
 }
 
 void loop() {
