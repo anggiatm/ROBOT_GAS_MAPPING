@@ -30,10 +30,19 @@
  * 
 ********************************************************************************************************************************/
 
-/**
- * LIST TASK
- * TASK 1 MOTOR R
- * TASK 2 MOTOR L
+/*******************************************************************************************************************************
+ * -----------------------------------------------LIST TASK  --------------------------------------------------------------------
+ * ______________________________________________________________________________________________________________________________________________________
+ * |                     |                   | STACK SIZE (byte) |           |          |                             | RUNNING |                       |
+ * |    TASK FUNCTION    |     TASK NAME     |  RAM CONSUMPTION  | PARAMETER | PRIORITY |          TASK HANDLE        |   CORE  |          FILE         |
+ * |_____________________|___________________|___________________|___________|__________|_____________________________|_________|_______________________|
+ * | _async_service_task | "async_tcp"       | 8192 * 2          |   NULL    |    1     | &_async_service_task_handle |   -1    | AsyncTCP.cpp          |
+ * | MOTOR_R->taskRunner | "FlexyStepper"    | 2000              |   NULL*   |    1     | MOTOR_R->xHandle            |    0    | ESP_FlexyStepper.cpp  |
+ * | MOTOR_R->taskRunner | "FlexyStepper"    | 2000              |   NULL*   |    1     | MOTOR_R->xHandle            |    1    | ESP_FlexyStepper.cpp  |
+ * | task_web_client     | "WEB_CLIENT_TASK" | 1024              |   NULL    |    1     | &Client_Task_Handle);       |   -1    | main.cpp              |
+ * |____________________________________________________________________________________________________________________________________________________|
+ *                                           TOTAL : 21408 bytes
+ *                                                      
 */
 
 #include <Arduino.h>
@@ -82,7 +91,7 @@
 #define DECELERATION_MM_PER_SECOND 140
 
 #define SERVO_NEUTRAL 99
-#define SERVO_RUN_CW 91
+#define SERVO_RUN_CW 94
 #define SERVO_RUN_ALIGNMENT 96
 
 #define HALL_SENSOR 19  // INVERTED !!! || ON = 0 || OFF = 1
@@ -153,34 +162,52 @@ void sendHeading(){
 }
 
 void forward(int target){
+  MOTOR_R.resumeService();
+  MOTOR_L.resumeService();
+  
   MOTOR_R.setCurrentPositionInMillimeters(0);
   MOTOR_L.setCurrentPositionInMillimeters(0);
   MOTOR_R.setTargetPositionInMillimeters(target);
   MOTOR_L.setTargetPositionInMillimeters(target);
+
+  setTargetPositionInSteps((long)round(absolutePositionToMoveToInMillimeters * stepsPerMillimeter));
+
+  while (MOTOR_R.getCurrentPositionInMillimeters() != target){
+    Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
+    Serial.println(MOTOR_R.getCurrentPositionInMillimeters());
+  }
+
+  MOTOR_R.suspendService();
+  MOTOR_L.suspendService();
 }
 
 void setHeading(int value){
+  MOTOR_R.resumeService();
+  MOTOR_L.resumeService();
   float target = value*MM_PER_DEGREE;
   MOTOR_R.setCurrentPositionInMillimeters(0);
   MOTOR_L.setCurrentPositionInMillimeters(0);
   MOTOR_R.setTargetPositionInMillimeters(-target);
   MOTOR_L.setTargetPositionInMillimeters(target);
+  // MOTOR_R.suspendService();
+  // MOTOR_L.suspendService();
 }
 
 int getAngle(){
-    int mapa;
+    // int mapa;
     mpu.dmpGetCurrentFIFOPacket(fifoBuffer);
     mpu.dmpGetQuaternion(&q, fifoBuffer);
     mpu.dmpGetGravity(&gravity, &q);
     mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
     int raw = (ypr[0] * 57.2958)+180;
-    if (raw<=180){
-        mapa = map(raw, 180, 0, 0, 180);
-    }
-    else {
-        mapa = map(raw, 359, 181, 181, 359);
-    }
-    return mapa;
+    // if (raw<=180){
+    //     mapa = map(raw, 180, 0, 0, 180);
+    // }
+    // else {
+    //     mapa = map(raw, 359, 181, 181, 359);
+    // }
+    // return mapa;
+    return raw;
 }
 
 void scanWall(){
@@ -265,13 +292,13 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     }
 
     else if (command == "readsensor"){
-      MOTOR_R.suspendService();
-      MOTOR_L.suspendService();
+      // MOTOR_R.suspendService();
+      // MOTOR_L.suspendService();
       Serial.println("DEBUG : Reading Sensor..........");
       scanWall();
       Serial.println("DEBUG : Read Sensor Complete..........");
-      MOTOR_R.resumeService();
-      MOTOR_L.resumeService();
+      // MOTOR_R.resumeService();
+      // MOTOR_L.resumeService();
       //clearPosition();
       //sendHeading();
     }
@@ -461,6 +488,8 @@ void setup(){
   xTaskCreate(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle);
   //digitalWrite(ledPin, HIGH);
   delay(3000);
+  MOTOR_R.suspendService();
+  MOTOR_L.suspendService();
   digitalWrite(LED, HIGH);
 }
 

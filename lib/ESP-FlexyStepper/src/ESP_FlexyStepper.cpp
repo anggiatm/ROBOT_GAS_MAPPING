@@ -121,6 +121,7 @@ void ESP_FlexyStepper::taskRunner(void *parameter)
   ESP_FlexyStepper *stepperRef = static_cast<ESP_FlexyStepper *>(parameter);
   for (;;)
   {
+    Serial.println(".");
     stepperRef->processMovement();
     vTaskDelay(1); // This would be a working solution to prevent the WDT to fire (if not disabled, yet it will cause noticeably less smooth stepper movements / lower frequencies)
   }
