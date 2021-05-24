@@ -31,15 +31,15 @@
 ********************************************************************************************************************************/
 
 /*******************************************************************************************************************************
- * -----------------------------------------------LIST TASK  --------------------------------------------------------------------
+ * ----------------------------------------------- TASK MANAGEMENT  --------------------------------------------------------------------
  * ______________________________________________________________________________________________________________________________________________________
  * |                     |                   | STACK SIZE (byte) |           |          |                             | RUNNING |                       |
  * |    TASK FUNCTION    |     TASK NAME     |  RAM CONSUMPTION  | PARAMETER | PRIORITY |          TASK HANDLE        |   CORE  |          FILE         |
  * |_____________________|___________________|___________________|___________|__________|_____________________________|_________|_______________________|
- * | _async_service_task | "async_tcp"       | 8192 * 2          |   NULL    |    1     | &_async_service_task_handle |   -1    | AsyncTCP.cpp          |
- * | MOTOR_R->taskRunner | "FlexyStepper"    | 2000              |   NULL*   |    1     | MOTOR_R->xHandle            |    0    | ESP_FlexyStepper.cpp  |
- * | MOTOR_R->taskRunner | "FlexyStepper"    | 2000              |   NULL*   |    1     | MOTOR_R->xHandle            |    1    | ESP_FlexyStepper.cpp  |
- * | task_web_client     | "WEB_CLIENT_TASK" | 1024              |   NULL    |    1     | &Client_Task_Handle);       |   -1    | main.cpp              |
+ * | _async_service_task | "async_tcp"       |     8192 * 2      |   NULL    |    1     | &_async_service_task_handle |   -1    | AsyncTCP.cpp          |
+ * | MOTOR_R->taskRunner | "FlexyStepper"    |     2000          |   NULL*   |    1     | MOTOR_R->xHandle            |    0    | ESP_FlexyStepper.cpp  |
+ * | MOTOR_L->taskRunner | "FlexyStepper"    |     2000          |   NULL*   |    1     | MOTOR_L->xHandle            |    1    | ESP_FlexyStepper.cpp  |
+ * | task_web_client     | "WEB_CLIENT_TASK" |     1024          |   NULL    |    1     | &Client_Task_Handle);       |   -1    | main.cpp              |
  * |____________________________________________________________________________________________________________________________________________________|
  *                                           TOTAL : 21408 bytes
  *                                                      
@@ -164,17 +164,15 @@ void sendHeading(){
 void forward(int target){
   MOTOR_R.resumeService();
   MOTOR_L.resumeService();
-  
-  MOTOR_R.setCurrentPositionInMillimeters(0);
-  MOTOR_L.setCurrentPositionInMillimeters(0);
-  MOTOR_R.setTargetPositionInMillimeters(target);
-  MOTOR_L.setTargetPositionInMillimeters(target);
+  long target_step = target*STEP_PER_MM;
+  MOTOR_R.setCurrentPositionInSteps(0);
+  MOTOR_L.setCurrentPositionInSteps(0);
+  MOTOR_R.setTargetPositionInSteps(target_step);
+  MOTOR_L.setTargetPositionInSteps(target_step);
 
-  setTargetPositionInSteps((long)round(absolutePositionToMoveToInMillimeters * stepsPerMillimeter));
-
-  while (MOTOR_R.getCurrentPositionInMillimeters() != target){
+  while (MOTOR_R.getCurrentPositionInSteps() != target_step){
     Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
-    Serial.println(MOTOR_R.getCurrentPositionInMillimeters());
+    Serial.println(MOTOR_R.getCurrentPositionInSteps());
   }
 
   MOTOR_R.suspendService();
