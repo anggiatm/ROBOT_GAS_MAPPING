@@ -188,6 +188,7 @@ static void _handle_async_event(lwip_event_packet_t * e){
 static void _async_service_task(void *pvParameters){
     lwip_event_packet_t * packet = NULL;
     for (;;) {
+        Serial.println("ping");
         if(_get_async_event(&packet)){
 #if CONFIG_ASYNC_TCP_USE_WDT
             if(esp_task_wdt_add(NULL) != ESP_OK){

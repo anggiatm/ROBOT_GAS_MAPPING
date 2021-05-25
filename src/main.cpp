@@ -193,6 +193,7 @@ void setHeading(int value){
 
 int getAngle(){
     // int mapa;
+    
     mpu.dmpGetCurrentFIFOPacket(fifoBuffer);
     mpu.dmpGetQuaternion(&q, fifoBuffer);
     mpu.dmpGetGravity(&gravity, &q);
@@ -212,6 +213,8 @@ void scanWall(){
   count = 0;
   int hall = 0;
   int old_hall = 0;
+  mpu.CalibrateAccel(6);
+  mpu.CalibrateGyro(6);
 
   motor.write(SERVO_RUN_CW);
   while (count <= 1){
@@ -247,25 +250,19 @@ void scanWall(){
   // serializeJson(doc, Serial);
 }
 
-// void task_display(void *pvParameters){
-//   (void) pvParameters;
-//   while (dmpReady){
-    
-//     if (!dmpReady) return;
-//     if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { 
-//       mpu.dmpGetQuaternion(&q, fifoBuffer);
-//       mpu.dmpGetGravity(&gravity, &q);
-//       mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-//       angle = ypr[0] * 180/M_PI;
-//       if (angle != angle_old){
-//          Serial.println(angle);
-//         Serial.print(" - ");
-//         Serial.println(sensor.readRangeSingleMillimeters());
-//         angle_old = angle;
-//       }
-//     }
-//   }
-// }
+void task_display(void *pvParameters){
+  (void) pvParameters;
+  vTaskDelay(200);
+  while (dmpReady){
+    mpu.dmpGetCurrentFIFOPacket(fifoBuffer);
+    mpu.dmpGetQuaternion(&q, fifoBuffer);
+    mpu.dmpGetGravity(&gravity, &q);
+    mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+    float a = ypr[0] * 180/M_PI;
+    Serial.println(a);
+    vTaskDelay(20);
+  }
+}
 
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
@@ -411,8 +408,8 @@ void setup(){
 
   mpu.setXGyroOffset(220);
   mpu.setYGyroOffset(76);
-  mpu.setZGyroOffset(-85);
-  mpu.setZAccelOffset(1788); // 1688 factory default for my test chip
+  mpu.setZGyroOffset(-30);   // -85 default
+  mpu.setZAccelOffset(1888); // 1688 factory default for my test chip
 
   if (devStatus == 0) {
     mpu.CalibrateAccel(6);
@@ -481,11 +478,12 @@ void setup(){
   MOTOR_R.startAsService(0);
   MOTOR_L.startAsService(1);      
 
-  // xTaskCreate(task_display, "MPU_RUN_TASK", 8192, NULL, 1, &MPU_TaskRun_Handle);
+  xTaskCreate(task_display, "MPU_RUN_TASK", 8192, NULL, 1, &MPU_TaskRun_Handle);
   server.begin();
   xTaskCreate(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle);
   //digitalWrite(ledPin, HIGH);
   delay(3000);
+  dmpReady = true;
   MOTOR_R.suspendService();
   MOTOR_L.suspendService();
   digitalWrite(LED, HIGH);

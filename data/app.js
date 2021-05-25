@@ -84,7 +84,7 @@ window.addEventListener('load', onLoad);
 
 
 function initWebSocket() {
-  console.log('Trying to open a WebSocket connection...');
+  console.log("Trying to open a WebSocket connection...");
   websocket = new WebSocket(gateway);
   websocket.onopen    = onOpen;
   websocket.onclose   = onClose;
@@ -92,10 +92,10 @@ function initWebSocket() {
 }
 
 function onOpen(event) {
-  console.log('Connection opened');
+  console.log("Connection opened");
 }
 function onClose(event) {
-  console.log('Connection closed');
+  console.log("Connection closed");
   setTimeout(initWebSocket, 2000);
 }
 function onMessage(event) {
@@ -106,7 +106,7 @@ function onMessage(event) {
       var name = keys[j];
       var strIndex = String(name);
       var splitIndex = strIndex.split("a");
-      var intIndex = parseInt(splitIndex[1]);
+      var intIndex = parseInt(splitIndex[1], 10);
       
       var value = data[name];
       wall[intIndex] = value;
@@ -182,7 +182,7 @@ function draw() {
     angleMode(RADIANS);
     for (var i=0; i<wall.length; i++){
       var a = (i * 0.0174533);
-      var num = parseInt(wall[i]);
+      var num = parseInt(wall[i], 10);
       if (num){
         var x = ((sin(a) * num * 0.3) + robot_cor_x);
         var y = ((cos(a) * num * 0.3) + robot_cor_y);
