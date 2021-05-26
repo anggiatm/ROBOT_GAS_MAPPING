@@ -67,7 +67,9 @@
 // }
 
 
-var gateway = "ws://192.168.43.27/ws";
+// var gateway = "ws://192.168.43.27/ws";
+var gateway = "ws://192.168.1.11/ws";
+
 var websocket;
 
 var corX = 0;
@@ -77,7 +79,10 @@ var wall = [];
 var scale = 0.5;
 var connectionStatus = "...";
 
-window.addEventListener('load', onLoad);
+var wallObject = {};
+var dotCount = 0;
+
+window.addEventListener("load", onLoad);
 
 function initWebSocket() {
   console.log("Trying to open a WebSocket connection...");
@@ -97,7 +102,9 @@ function onClose(event) {
   connectionStatus = "Connection closed";
   setTimeout(initWebSocket, 5000);
 }
+
 function onMessage(event) {
+  console.log(event.data);
   var data = JSON.parse(event.data);
   var keys = Object.keys(data);
   for (var j=0; j<360; j++){
@@ -111,11 +118,43 @@ function onMessage(event) {
       wall[intIndex] = value;
     }
   }
+
+  for (var i=0; i<wall.length; i++){
+    var a = (i * 0.0174533);
+    var num = parseInt(wall[i], 10);
+    if (num){
+      var x = ((sin(a) * num * 0.3) + robotCorX);
+      var y = ((cos(a) * num * 0.3) + robotCorY);
+      
+      wallObject[dotCount.toString()] = x + "," + y;
+      console.log(wallObject);
+      dotCount += 1;
+    }
+    else {
+      console.log("DEBUG : Array kosong/error di index #"+i);
+    }
+  }
+
+  console.log(wallObject);
+
   document.getElementById('state').innerHTML = wall;
   //document.getElementById('state').innerHTML = event.data;
 }
 
 function onLoad(event) {
+  
+  // var keys = Object.keys(wallObject);
+  // for (var j=0; j<360; j++){
+  //   if(keys[j] != "voc" && keys[j] != "co2" && keys[j] != "asap" && keys[j] != "temp" && keys[j] != "hum"){
+  //     var name = keys[j];
+  //     var strIndex = String(name);
+  //     var splitIndex = strIndex.split("a");
+  //     var intIndex = parseInt(splitIndex[1], 10);
+      
+  //     var value = data[name];
+  //     wall[intIndex] = value;
+  //   }
+  // }
   initWebSocket();
   initButton();
 }
@@ -167,8 +206,6 @@ function draw() {
   text("Connection :" + connectionStatus, 20, 20);
   text("Coordinate (x, y):"+ corX + ", " + corY, 350, 20);  // offset from edge 30px
   text("Heading :" + angle, 700, 20);
-
-  
 
   if (wall.length > 1){
     stroke(255);

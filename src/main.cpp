@@ -110,7 +110,7 @@ ESP_FlexyStepper MOTOR_R;
 ESP_FlexyStepper MOTOR_L;
 
 //TaskHandle_t MPU_TaskInit_Handle;
-// TaskHandle_t MPU_TaskRun_Handle;
+TaskHandle_t MPU_TaskRun_Handle;
 TaskHandle_t Client_Task_Handle;
 
 VL53L0X sensor;
@@ -131,6 +131,7 @@ uint8_t fifoBuffer[64]; // FIFO storage buffer
 
 int angle;
 int angle_old = 0;
+int scanTask;
 uint16_t count;
 bool hall_detect;
 
@@ -138,8 +139,11 @@ Quaternion q;           // [w, x, y, z]         quaternion container
 VectorFloat gravity;    // [x, y, z]            gravity vector
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
-const char* ssid = "MIX";
-const char* password = "123456789";
+const char* ssid = "RP";
+const char* password = "rumahpenelitian123";
+
+// const char* ssid = "MIX";
+// const char* password = "123456789";
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -200,12 +204,11 @@ void setHeading(int value){
 
 int getAngle(){
     // int mapa;
-    
     mpu.dmpGetCurrentFIFOPacket(fifoBuffer);
     mpu.dmpGetQuaternion(&q, fifoBuffer);
     mpu.dmpGetGravity(&gravity, &q);
     mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-    int raw = (ypr[0] * 57.2958)+180;
+    // int raw = (ypr[0] * 57.2958)+180;
     // if (raw<=180){
     //     mapa = map(raw, 180, 0, 0, 180);
     // }
@@ -213,16 +216,53 @@ int getAngle(){
     //     mapa = map(raw, 359, 181, 181, 359);
     // }
     // return mapa;
-    return raw;
+    // return raw;
+    return ypr[0] * 57.2958;
+}
+
+// MPU REALTIME DEBUG
+void task_display(void *pvParameters){
+  (void) pvParameters;
+  vTaskDelay(200);
+
+  while (1){
+    // Serial.println(scanTask);
+    vTaskDelay(1);
+    count = 0;
+    int hall = 0;
+    int old_hall = 0;
+
+  if (scanTask > 0){
+    motor.write(SERVO_RUN_CW);
+    while (count <= 1){
+      hall = digitalRead(HALL_SENSOR);
+      if (hall != old_hall){
+        old_hall = hall;
+        count = count + 1;
+      }
+      
+      angle = getAngle();
+      if (angle != angle_old){
+        root["a"+String(angle)] = sensor.readRangeSingleMillimeters();
+        angle_old = angle;
+        Serial.println(angle);
+      }
+    }
+    motor.write(SERVO_NEUTRAL);
+    size_t len = serializeJson(root, buffer);  // serialize to buffer
+    ws.textAll(buffer, len);
+    scanTask = 0;
+    
+  }
+  }
+  vTaskDelete(NULL);
 }
 
 void scanWall(){
   count = 0;
   int hall = 0;
   int old_hall = 0;
-  mpu.CalibrateAccel(6);
-  mpu.CalibrateGyro(6);
-
+  
   motor.write(SERVO_RUN_CW);
   while (count <= 1){
     hall = digitalRead(HALL_SENSOR);
@@ -237,7 +277,6 @@ void scanWall(){
 
       Serial.println(angle);
 
-      
       // Serial.print(",");
       // Serial.println(sensor.readRangeSingleMillimeters());
       
@@ -257,20 +296,6 @@ void scanWall(){
   // serializeJson(doc, Serial);
 }
 
-// MPU REALTIME DEBUG
-// void task_display(void *pvParameters){
-//   (void) pvParameters;
-//   vTaskDelay(200);
-//   while (dmpReady){
-//     mpu.dmpGetCurrentFIFOPacket(fifoBuffer);
-//     mpu.dmpGetQuaternion(&q, fifoBuffer);
-//     mpu.dmpGetGravity(&gravity, &q);
-//     mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-//     float a = ypr[0] * 180/M_PI;
-//     Serial.println(a);
-//     vTaskDelay(20);
-//   }
-// }
 
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
@@ -298,7 +323,8 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
       // MOTOR_R.suspendService();
       // MOTOR_L.suspendService();
       Serial.println("DEBUG : Reading Sensor..........");
-      scanWall();
+      scanTask = 1;
+      // scanWall();
       Serial.println("DEBUG : Read Sensor Complete..........");
       // MOTOR_R.resumeService();
       // MOTOR_L.resumeService();
@@ -330,7 +356,10 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
       handleWebSocketMessage(arg, data, len);
       break;
     case WS_EVT_PONG:
+      Serial.println("WS_EVT_PONG");
+      break;
     case WS_EVT_ERROR:
+      Serial.println("ERROR");
       break;
   }
 }
@@ -375,6 +404,7 @@ void sensorAlignment(){
 }
 
 void setup(){
+  scanTask = 0;
   #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     Wire.begin();
     Wire.setClock(400000); 
@@ -447,8 +477,6 @@ void setup(){
   MOTOR_L.setSpeedInMillimetersPerSecond(SPEED_MM_PER_SECOND);
   //MOTOR_R.setAccelerationInMillimetersPerSecondPerSecond(ACCELERATION_MM_PER_SECOND);
   //MOTOR_L.setDecelerationInMillimetersPerSecondPerSecond(DECELERATION_MM_PER_SECOND);
-
-  
   
   // Connect to Wi-Fi
   WiFi.begin(ssid, password);
@@ -457,8 +485,7 @@ void setup(){
     Serial.println("Connecting to WiFi..");
   }
 
-  // Print ESP Local IP Address
-  Serial.println(WiFi.localIP());
+  
 
   initWebSocket();
 
@@ -486,7 +513,7 @@ void setup(){
   MOTOR_R.startAsService(0);
   MOTOR_L.startAsService(1);      
 
-  // xTaskCreate(task_display, "MPU_RUN_TASK", 8192, NULL, 1, &MPU_TaskRun_Handle);
+  xTaskCreate(task_display, "MPU_RUN_TASK", 8192 * 2, NULL, 1, &MPU_TaskRun_Handle);
   server.begin();
   xTaskCreate(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle);
   //digitalWrite(ledPin, HIGH);
@@ -495,6 +522,8 @@ void setup(){
   MOTOR_R.suspendService();
   MOTOR_L.suspendService();
   digitalWrite(LED, HIGH);
+  // Print ESP Local IP Address
+  Serial.println(WiFi.localIP());
 }
 
 void loop() {
