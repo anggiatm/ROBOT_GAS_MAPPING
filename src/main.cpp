@@ -1,5 +1,4 @@
 
-
 /*****************************************************************************************************************************
  * ----------------------------- KALKULASI SUDUT PUTAR ROBOT / STEP PER MM ----------------------------------------------------
  * -------------------------------------------------------------------------------------------------------------------------
@@ -31,7 +30,7 @@
 ********************************************************************************************************************************/
 
 /*******************************************************************************************************************************
- * ----------------------------------------------- TASK MANAGEMENT  --------------------------------------------------------------------
+ * ----------------------------------------------- MAIN TASK MANAGEMENT  --------------------------------------------------------------------
  * ______________________________________________________________________________________________________________________________________________________
  * |                     |                   | STACK SIZE (byte) |           |          |                             | RUNNING |                       |
  * |    TASK FUNCTION    |     TASK NAME     |  RAM CONSUMPTION  | PARAMETER | PRIORITY |          TASK HANDLE        |   CORE  |          FILE         |
@@ -42,6 +41,14 @@
  * | task_web_client     | "WEB_CLIENT_TASK" |     1024          |   NULL    |    1     | &Client_Task_Handle);       |   -1    | main.cpp              |
  * |____________________________________________________________________________________________________________________________________________________|
  *                                           TOTAL : 21408 bytes
+ * 
+ * ------------------------------------------- TASK FOR DEBUGING PURPOSE ONLY ------------------------------------------------------------------------------
+ *  ______________________________________________________________________________________________________________________________________________________
+ * |                     |                   | STACK SIZE (byte) |           |          |                             | RUNNING |                       |
+ * |    TASK FUNCTION    |     TASK NAME     |  RAM CONSUMPTION  | PARAMETER | PRIORITY |          TASK HANDLE        |   CORE  |          FILE         | KET
+ * |_____________________|___________________|___________________|___________|__________|_____________________________|_________|_______________________|
+ * | task_display        | "MPU_RUN_TASK"    |        8192       |   NULL    |    1     | &MPU_TaskRun_Handle         |   -1    | main.cpp              | DEBUG MPU
+ * |_____________________|___________________|___________________|___________|__________|_____________________________|_________|_______________________|
  *                                                      
 */
 
@@ -103,7 +110,7 @@ ESP_FlexyStepper MOTOR_R;
 ESP_FlexyStepper MOTOR_L;
 
 //TaskHandle_t MPU_TaskInit_Handle;
-TaskHandle_t MPU_TaskRun_Handle;
+// TaskHandle_t MPU_TaskRun_Handle;
 TaskHandle_t Client_Task_Handle;
 
 VL53L0X sensor;
@@ -174,7 +181,7 @@ void forward(int target){
     Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
     Serial.println(MOTOR_R.getCurrentPositionInSteps());
   }
-
+  
   MOTOR_R.suspendService();
   MOTOR_L.suspendService();
 }
@@ -250,19 +257,20 @@ void scanWall(){
   // serializeJson(doc, Serial);
 }
 
-void task_display(void *pvParameters){
-  (void) pvParameters;
-  vTaskDelay(200);
-  while (dmpReady){
-    mpu.dmpGetCurrentFIFOPacket(fifoBuffer);
-    mpu.dmpGetQuaternion(&q, fifoBuffer);
-    mpu.dmpGetGravity(&gravity, &q);
-    mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-    float a = ypr[0] * 180/M_PI;
-    Serial.println(a);
-    vTaskDelay(20);
-  }
-}
+// MPU REALTIME DEBUG
+// void task_display(void *pvParameters){
+//   (void) pvParameters;
+//   vTaskDelay(200);
+//   while (dmpReady){
+//     mpu.dmpGetCurrentFIFOPacket(fifoBuffer);
+//     mpu.dmpGetQuaternion(&q, fifoBuffer);
+//     mpu.dmpGetGravity(&gravity, &q);
+//     mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+//     float a = ypr[0] * 180/M_PI;
+//     Serial.println(a);
+//     vTaskDelay(20);
+//   }
+// }
 
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
@@ -408,7 +416,7 @@ void setup(){
 
   mpu.setXGyroOffset(220);
   mpu.setYGyroOffset(76);
-  mpu.setZGyroOffset(-30);   // -85 default
+  mpu.setZGyroOffset(0);   // -85 default
   mpu.setZAccelOffset(1888); // 1688 factory default for my test chip
 
   if (devStatus == 0) {
@@ -478,7 +486,7 @@ void setup(){
   MOTOR_R.startAsService(0);
   MOTOR_L.startAsService(1);      
 
-  xTaskCreate(task_display, "MPU_RUN_TASK", 8192, NULL, 1, &MPU_TaskRun_Handle);
+  // xTaskCreate(task_display, "MPU_RUN_TASK", 8192, NULL, 1, &MPU_TaskRun_Handle);
   server.begin();
   xTaskCreate(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle);
   //digitalWrite(ledPin, HIGH);

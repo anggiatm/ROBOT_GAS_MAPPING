@@ -67,21 +67,17 @@
 // }
 
 
-var gateway = `ws://192.168.43.27/ws`;
+var gateway = "ws://192.168.43.27/ws";
 var websocket;
 
-var con = "----";
-var cor_x = 0;
-var cor_y = 0;
+var corX = 0;
+var corY = 0;
 var angle = 0;
-var head_x = 0;
-var head_y = 0;
 var wall = [];
 var scale = 0.5;
-scanDataAvailable = 0;
+var connectionStatus = "...";
 
 window.addEventListener('load', onLoad);
-
 
 function initWebSocket() {
   console.log("Trying to open a WebSocket connection...");
@@ -92,11 +88,14 @@ function initWebSocket() {
 }
 
 function onOpen(event) {
-  console.log("Connection opened");
+  // eslint-disable-next-line no-console
+  // console.log("Connection opened");
+  connectionStatus = "Connection opened";
 }
 function onClose(event) {
   console.log("Connection closed");
-  setTimeout(initWebSocket, 2000);
+  connectionStatus = "Connection closed";
+  setTimeout(initWebSocket, 5000);
 }
 function onMessage(event) {
   var data = JSON.parse(event.data);
@@ -113,7 +112,6 @@ function onMessage(event) {
     }
   }
   document.getElementById('state').innerHTML = wall;
-  scanDataAvailable = 1;
   //document.getElementById('state').innerHTML = event.data;
 }
 
@@ -130,52 +128,48 @@ function initButton() {
 }
 
 function setHeading(){
-  var heading_value = document.getElementById('input_set_heading').value;
-  websocket.send('setheading='+heading_value);
+  var headingValue = document.getElementById("input_set_heading").value;
+  // websocket.send('setheading='+headingValue);
+  angle = angle + parseInt(headingValue);
+  console.log(typeof(angle));
 }
 
 function setForward(){
-  var x = document.getElementById('input_set_forward').value;
-  websocket.send('setforward='+x);
+  var forwardValue = document.getElementById("input_set_forward").value;
+  // websocket.send('setforward='+forwardValue);
+  angleMode(RADIANS);
+  corX = corX + parseInt((sin(angle * 0.0174533) * parseInt(forwardValue)));
+  corY = corY + parseInt((cos(angle * 0.0174533) * parseInt(forwardValue)));
 }
 
 function readSensor(){
   websocket.send('readsensor');
 }
 
-// function toggle(){
-//   websocket.send('led=toggle');
-// }
-
-
-
-// function getHeading(){
-//   websocket.send('getheading');
-// }
-
 function drawScanValue(){
   
 }
 
-
-
 function setup() {
-  let cnv = createCanvas(850, 560);
-  cnv.position(20, 80);
+  let canvas = createCanvas(850, 560);
+  canvas.position(20, 80);
   background("#42413F");
 }
 
 function draw() {
-  var robot_cor_x = cor_x + 70;
-  var robot_cor_y = -cor_y + 500;
+  
+  var robotCorX = corX + 70;
+  var robotCorY = -corY + 500;
   fill(255);
   noStroke();
   textSize(15);
   textStyle(NORMAL);
-  text("Connection :"+con, 20, 20);
-  text("Coordinate (x, y):"+ cor_x + ", " + cor_y, 350, 20);  // offset from edge 30
-  text("Heading :"+ angle, 700, 20);
+  text("Connection :" + connectionStatus, 20, 20);
+  text("Coordinate (x, y):"+ corX + ", " + corY, 350, 20);  // offset from edge 30px
+  text("Heading :" + angle, 700, 20);
+
   
+
   if (wall.length > 1){
     stroke(255);
     strokeWeight(2);
@@ -184,8 +178,8 @@ function draw() {
       var a = (i * 0.0174533);
       var num = parseInt(wall[i], 10);
       if (num){
-        var x = ((sin(a) * num * 0.3) + robot_cor_x);
-        var y = ((cos(a) * num * 0.3) + robot_cor_y);
+        var x = ((sin(a) * num * 0.3) + robotCorX);
+        var y = ((cos(a) * num * 0.3) + robotCorY);
       }
       else {
         console.log("DEBUG : Array kosong/error di index #"+i);
@@ -198,13 +192,10 @@ function draw() {
   stroke(0);
   angleMode(DEGREES);
   strokeWeight(1);
-  circle(robot_cor_x, robot_cor_y, 20);
-  translate(robot_cor_x, robot_cor_y);
+  circle(robotCorX, robotCorY, 20);
+  translate(robotCorX, robotCorY);
   rotate(angle);
   rect(-1, 4, 2, -30);
- 
-  
-  
 }
 
 

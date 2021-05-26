@@ -31,7 +31,7 @@ body {
 }
 
 .card {
-  background-color: #F8F7F9;
+  background-color: #fff;
   box-shadow: 2px 2px 12px 1px rgba(140,140,140,.5);
   padding-top: 10px;
   padding-bottom: 20px;
@@ -53,26 +53,26 @@ body {
   -ms-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: rgba(0,0,0,0);
- }
- 
- .button:active {
-   background-color: #0f8b8d;
-   box-shadow: 2 2px #CDCDCD;
-   transform: translateY(2px);
- }
+}
 
- .state {
-   font-size: 1.5rem;
-   color:#8c8c8c;
-   font-weight: bold;
- }
+.button:active {
+  background-color: #0f8b8d;
+  box-shadow: 2 2px #CDCDCD;
+  transform: translateY(2px);
+}
 
- .col-left{
-  width: 50%;
-  float: left
- }
+.state {
+  font-size: 1.5rem;
+  color:#8c8c8c;
+  font-weight: bold;
+}
 
- .col-right{
-  width: 50%;
-  float: right
- }
+.col-left{
+ width: 50%;
+ float: left
+}
+
+.col-right{
+ width: 50%;
+ float: right
+}
