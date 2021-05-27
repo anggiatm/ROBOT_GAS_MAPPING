@@ -189,6 +189,7 @@ static void _async_service_task(void *pvParameters){
     lwip_event_packet_t * packet = NULL;
     for (;;) {
         Serial.println("ping");
+        // Serial.println(uxTaskGetStackHighWaterMark(_async_service_task_handle));
         if(_get_async_event(&packet)){
 #if CONFIG_ASYNC_TCP_USE_WDT
             if(esp_task_wdt_add(NULL) != ESP_OK){
@@ -220,7 +221,7 @@ static bool _start_async_task(){
         return false;
     }
     if(!_async_service_task_handle){
-        xTaskCreateUniversal(_async_service_task, "async_tcp", 8192 * 2, NULL, 1, &_async_service_task_handle, CONFIG_ASYNC_TCP_RUNNING_CORE);
+        xTaskCreateUniversal(_async_service_task, "async_tcp", 1024*15, NULL, 1, &_async_service_task_handle, CONFIG_ASYNC_TCP_RUNNING_CORE);
         if(!_async_service_task_handle){
             return false;
         }

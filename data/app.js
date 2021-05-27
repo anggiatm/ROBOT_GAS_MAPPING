@@ -67,8 +67,8 @@
 // }
 
 
-// var gateway = "ws://192.168.43.27/ws";
-var gateway = "ws://192.168.1.11/ws";
+var gateway = "ws://192.168.43.27/ws";
+// var gateway = "ws://192.168.1.11/ws";
 
 var websocket;
 
@@ -168,14 +168,14 @@ function initButton() {
 
 function setHeading(){
   var headingValue = document.getElementById("input_set_heading").value;
-  // websocket.send('setheading='+headingValue);
+  websocket.send('setheading='+headingValue);
   angle = angle + parseInt(headingValue);
   console.log(typeof(angle));
 }
 
 function setForward(){
   var forwardValue = document.getElementById("input_set_forward").value;
-  // websocket.send('setforward='+forwardValue);
+  websocket.send('setforward='+forwardValue);
   angleMode(RADIANS);
   corX = corX + parseInt((sin(angle * 0.0174533) * parseInt(forwardValue)));
   corY = corY + parseInt((cos(angle * 0.0174533) * parseInt(forwardValue)));
@@ -197,8 +197,8 @@ function setup() {
 
 function draw() {
   
-  var robotCorX = corX + 70;
-  var robotCorY = -corY + 500;
+  var robotCorX = (0.3*corX) + 70;
+  var robotCorY = -(0.3*corY) + 500;
   fill(255);
   noStroke();
   textSize(15);

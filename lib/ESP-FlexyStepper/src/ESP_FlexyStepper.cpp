@@ -100,7 +100,7 @@ void ESP_FlexyStepper::startAsService(int core)
   xTaskCreateUniversal(
       ESP_FlexyStepper::taskRunner, /* Task function. */
       "FlexyStepper",               /* String with name of task (by default max 16 characters long) */
-      2000,                         /* Stack size in bytes. */
+      1024,                         /* Stack size in bytes. */
       this,                         /* Parameter passed as input of the task */
       1,                            /* Priority of the task, 1 seems to work just fine for us */
       &this->xHandle,

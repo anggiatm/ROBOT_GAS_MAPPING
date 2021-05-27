@@ -35,9 +35,9 @@
  * |                     |                   | STACK SIZE (byte) |           |          |                             | RUNNING |                       |
  * |    TASK FUNCTION    |     TASK NAME     |  RAM CONSUMPTION  | PARAMETER | PRIORITY |          TASK HANDLE        |   CORE  |          FILE         |
  * |_____________________|___________________|___________________|___________|__________|_____________________________|_________|_______________________|
- * | _async_service_task | "async_tcp"       |     8192 * 2      |   NULL    |    1     | &_async_service_task_handle |   -1    | AsyncTCP.cpp          |
- * | MOTOR_R->taskRunner | "FlexyStepper"    |     2000          |   NULL*   |    1     | MOTOR_R->xHandle            |    0    | ESP_FlexyStepper.cpp  |
- * | MOTOR_L->taskRunner | "FlexyStepper"    |     2000          |   NULL*   |    1     | MOTOR_L->xHandle            |    1    | ESP_FlexyStepper.cpp  |
+ * | _async_service_task | "async_tcp"       |     1024*15       |   NULL    |    1     | &_async_service_task_handle |   -1    | AsyncTCP.cpp          |
+ * | MOTOR_R->taskRunner | "FlexyStepper"    |     1024          |   NULL*   |    1     | MOTOR_R->xHandle            |   -1    | ESP_FlexyStepper.cpp  |
+ * | MOTOR_L->taskRunner | "FlexyStepper"    |     1024          |   NULL*   |    1     | MOTOR_L->xHandle            |   -1    | ESP_FlexyStepper.cpp  |
  * | task_web_client     | "WEB_CLIENT_TASK" |     1024          |   NULL    |    1     | &Client_Task_Handle);       |   -1    | main.cpp              |
  * |____________________________________________________________________________________________________________________________________________________|
  *                                           TOTAL : 21408 bytes
@@ -47,7 +47,7 @@
  * |                     |                   | STACK SIZE (byte) |           |          |                             | RUNNING |                       |
  * |    TASK FUNCTION    |     TASK NAME     |  RAM CONSUMPTION  | PARAMETER | PRIORITY |          TASK HANDLE        |   CORE  |          FILE         | KET
  * |_____________________|___________________|___________________|___________|__________|_____________________________|_________|_______________________|
- * | task_display        | "MPU_RUN_TASK"    |        8192       |   NULL    |    1     | &MPU_TaskRun_Handle         |   -1    | main.cpp              | DEBUG MPU
+ * | task_display        | "MPU_RUN_TASK"    |        1024*2     |   NULL    |    1     | &MPU_TaskRun_Handle         |   -1    | main.cpp              | DEBUG MPU
  * |_____________________|___________________|___________________|___________|__________|_____________________________|_________|_______________________|
  *                                                      
 */
@@ -139,11 +139,11 @@ Quaternion q;           // [w, x, y, z]         quaternion container
 VectorFloat gravity;    // [x, y, z]            gravity vector
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
-const char* ssid = "RP";
-const char* password = "rumahpenelitian123";
+// const char* ssid = "RP";
+// const char* password = "rumahpenelitian123";
 
-// const char* ssid = "MIX";
-// const char* password = "123456789";
+const char* ssid = "MIX";
+const char* password = "123456789";
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -176,30 +176,39 @@ void forward(int target){
   MOTOR_R.resumeService();
   MOTOR_L.resumeService();
   long target_step = target*STEP_PER_MM;
+
   MOTOR_R.setCurrentPositionInSteps(0);
   MOTOR_L.setCurrentPositionInSteps(0);
   MOTOR_R.setTargetPositionInSteps(target_step);
   MOTOR_L.setTargetPositionInSteps(target_step);
 
-  while (MOTOR_R.getCurrentPositionInSteps() != target_step){
+  while (MOTOR_L.getCurrentPositionInSteps() != target_step){
     Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
-    Serial.println(MOTOR_R.getCurrentPositionInSteps());
+    Serial.println(MOTOR_L.getCurrentPositionInSteps());
+    // Serial.println(MOTOR_L.getTaskStackHighWaterMark());
   }
   
   MOTOR_R.suspendService();
   MOTOR_L.suspendService();
 }
 
-void setHeading(int value){
+void setHeading(int target){
   MOTOR_R.resumeService();
   MOTOR_L.resumeService();
-  float target = value*MM_PER_DEGREE;
-  MOTOR_R.setCurrentPositionInMillimeters(0);
-  MOTOR_L.setCurrentPositionInMillimeters(0);
-  MOTOR_R.setTargetPositionInMillimeters(-target);
-  MOTOR_L.setTargetPositionInMillimeters(target);
-  // MOTOR_R.suspendService();
-  // MOTOR_L.suspendService();
+  long target_step = target*STEP_PER_MM;
+
+  MOTOR_R.setCurrentPositionInSteps(0);
+  MOTOR_L.setCurrentPositionInSteps(0);
+  MOTOR_R.setTargetPositionInMillimeters(-target_step);
+  MOTOR_L.setTargetPositionInMillimeters(target_step);
+
+  while (MOTOR_L.getCurrentPositionInSteps() != target_step){
+    Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
+    Serial.println(MOTOR_L.getCurrentPositionInSteps());
+    // Serial.println(MOTOR_L.getTaskStackHighWaterMark());
+  }
+  MOTOR_R.suspendService();
+  MOTOR_L.suspendService();
 }
 
 int getAngle(){
@@ -217,7 +226,7 @@ int getAngle(){
     // }
     // return mapa;
     // return raw;
-    return ypr[0] * 57.2958;
+    return (ypr[0] * 57.2958)+180;
 }
 
 // MPU REALTIME DEBUG
@@ -226,34 +235,33 @@ void task_display(void *pvParameters){
   vTaskDelay(200);
 
   while (1){
-    // Serial.println(scanTask);
     vTaskDelay(1);
     count = 0;
     int hall = 0;
     int old_hall = 0;
-
-  if (scanTask > 0){
-    motor.write(SERVO_RUN_CW);
-    while (count <= 1){
-      hall = digitalRead(HALL_SENSOR);
-      if (hall != old_hall){
-        old_hall = hall;
-        count = count + 1;
+    
+    if (scanTask > 0){
+      motor.write(SERVO_RUN_CW);
+      while (count <= 1){
+        hall = digitalRead(HALL_SENSOR);
+        if (hall != old_hall){
+          old_hall = hall;
+          count = count + 1;
+        }
+        
+        angle = getAngle();
+        if (angle != angle_old){
+          root["a"+String(angle)] = sensor.readRangeSingleMillimeters();
+          angle_old = angle;
+          Serial.println(angle);
+        }
       }
       
-      angle = getAngle();
-      if (angle != angle_old){
-        root["a"+String(angle)] = sensor.readRangeSingleMillimeters();
-        angle_old = angle;
-        Serial.println(angle);
-      }
+      motor.write(SERVO_NEUTRAL);
+      size_t len = serializeJson(root, buffer);  // serialize to buffer
+      ws.textAll(buffer, len);
+      scanTask = 0;
     }
-    motor.write(SERVO_NEUTRAL);
-    size_t len = serializeJson(root, buffer);  // serialize to buffer
-    ws.textAll(buffer, len);
-    scanTask = 0;
-    
-  }
   }
   vTaskDelete(NULL);
 }
@@ -274,14 +282,7 @@ void scanWall(){
     if (angle != angle_old){
       root["a"+String(angle)] = sensor.readRangeSingleMillimeters();
       angle_old = angle;
-
       Serial.println(angle);
-
-      // Serial.print(",");
-      // Serial.println(sensor.readRangeSingleMillimeters());
-      
-      // count = count + 1;
-      // hall_detect = digitalRead(HALL_SENSOR);
     }
   }
   motor.write(SERVO_NEUTRAL);
@@ -293,9 +294,7 @@ void scanWall(){
   size_t len = serializeJson(root, buffer);  // serialize to buffer
   ws.textAll(buffer, len); // send buffer to web socket
   // Serial.println(buffer);
-  // serializeJson(doc, Serial);
 }
-
 
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
@@ -305,7 +304,6 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     String value = splitString((char*)data, '=', 1);
 
     if (command == "setheading"){
-      //vTaskSuspend(MPU_TaskRun_Handle);
       Serial.println("SET HEADING");
       int val_head = value.toInt();
       setHeading(val_head);
@@ -335,11 +333,6 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     else {
       Serial.println("UNKNOWN COMMAND");
     }
-
-    // if (strcmp((char*)data, "toggle") == 0) {
-    //   ledState = !ledState;
-    //   notifyClients();
-    // }
   }
 }
 
@@ -486,7 +479,6 @@ void setup(){
   }
 
   
-
   initWebSocket();
 
   // Route for root / web page
@@ -510,10 +502,10 @@ void setup(){
     request->send(SPIFFS, "/app.js");
   });
 
-  MOTOR_R.startAsService(0);
-  MOTOR_L.startAsService(1);      
+  MOTOR_R.startAsService(-1);
+  MOTOR_L.startAsService(-1);      
 
-  xTaskCreate(task_display, "MPU_RUN_TASK", 8192 * 2, NULL, 1, &MPU_TaskRun_Handle);
+  xTaskCreateUniversal(task_display, "MPU_RUN_TASK", 1024*2, NULL, 1, &MPU_TaskRun_Handle, -1);
   server.begin();
   xTaskCreate(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle);
   //digitalWrite(ledPin, HIGH);
