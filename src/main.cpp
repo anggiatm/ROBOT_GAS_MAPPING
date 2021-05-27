@@ -164,10 +164,6 @@ String splitString(String data, char separator, int index){
   return found>index ? data.substring(strIndex[0], strIndex[1]) : "";
 }
 
-void notifyClients() {
-  ws.textAll(String("ledState"));
-}
-
 void sendHeading(){
   ws.textAll(String("heading-value"));
 }
