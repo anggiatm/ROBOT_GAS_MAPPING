@@ -1,4 +1,7 @@
 ﻿# ROBOT GAS MAPPING
+
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/49bfa60d825d434595f823618acac962)](https://app.codacy.com/gh/anggiatm/ROBOT_GAS_MAPPING?utm_source=github.com&utm_medium=referral&utm_content=anggiatm/ROBOT_GAS_MAPPING&utm_campaign=Badge_Grade_Settings)
+
  
  #
 PROJECT INI DIBUAT UNTUK BAHAN SKRIPSI
