@@ -4,6 +4,13 @@ python:
 
 # Cache PlatformIO packages using Travis CI container-based infrastructure
 sudo: false
+
+env:
+    - PLATFORMIO_CI_SRC=ROBOT_GAS_MAPPING/lib/ESP-FlexyStepper/src
+    - PLATFORMIO_CI_SRC=ROBOT_GAS_MAPPING/lib/AsyncTCP/src",
+    - PLATFORMIO_CI_SRC=ROBOT_GAS_MAPPING/lib/MPU6050",
+    - PLATFORMIO_CI_SRC=ROBOT_GAS_MAPPING/lib/I2Cdev",
+    - PLATFORMIO_CI_SRC=ROBOT_GAS_MAPPING/lib/AccelStepper",
 cache:
     directories:
         - "~/.platformio"
@@ -12,6 +19,7 @@ cache:
 install:
     - pip install -U platformio
     - pio update
+    - platformio lib -g install https://github.com/espressif/arduino-esp32
     - platformio lib -g install https://github.com/bblanchon/ArduinoJson
     - platformio lib -g install https://github.com/pololu/vl53l0x-arduino
     - platformio lib -g install https://github.com/madhephaestus/ESP32Servo
