@@ -12,6 +12,9 @@ cache:
 install:
     - pip install -U platformio
     - pio update
+    - platformio lib -g install https://github.com/bblanchon/ArduinoJson
+    - platformio lib -g install https://github.com/pololu/vl53l0x-arduino
+    - platformio lib -g install https://github.com/madhephaestus/ESP32Servo
 
 script:
-    - pio run -e <ID_1> -e <ID_2> -e <ID_N>
+    - pio run -e <esp32doit-devkit-v1>
