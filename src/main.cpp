@@ -39,15 +39,7 @@
  * | MOTOR_R->taskRunner | "FlexyStepper"    |     1024          |   NULL*   |    1     | MOTOR_R->xHandle            |   -1    | ESP_FlexyStepper.cpp  |
  * | MOTOR_L->taskRunner | "FlexyStepper"    |     1024          |   NULL*   |    1     | MOTOR_L->xHandle            |   -1    | ESP_FlexyStepper.cpp  |
  * | task_web_client     | "WEB_CLIENT_TASK" |     1024          |   NULL    |    1     | &Client_Task_Handle);       |   -1    | main.cpp              |
- * |____________________________________________________________________________________________________________________________________________________|
- *                                           TOTAL : 21408 bytes
- * 
- * ------------------------------------------- TASK FOR DEBUGING PURPOSE ONLY ------------------------------------------------------------------------------
- *  ______________________________________________________________________________________________________________________________________________________
- * |                     |                   | STACK SIZE (byte) |           |          |                             | RUNNING |                       |
- * |    TASK FUNCTION    |     TASK NAME     |  RAM CONSUMPTION  | PARAMETER | PRIORITY |          TASK HANDLE        |   CORE  |          FILE         | KET
- * |_____________________|___________________|___________________|___________|__________|_____________________________|_________|_______________________|
- * | task_display        | "MPU_RUN_TASK"    |        1024*2     |   NULL    |    1     | &MPU_TaskRun_Handle         |   -1    | main.cpp              | DEBUG MPU
+ * | task_display        | "MPU_RUN_TASK"    |     1024*2        |   NULL    |    1     | &MPU_TaskRun_Handle         |   -1    | main.cpp              | DEBUG MPU
  * |_____________________|___________________|___________________|___________|__________|_____________________________|_________|_______________________|
  *                                                      
 */
