@@ -6,8 +6,6 @@ python:
 sudo: false
 
 env:
-    - PLATFORMIO_CI_SRC=ROBOT_GAS_MAPPING/lib/ESP-FlexyStepper/src/ESP-FlexyStepper.h
-    - PLATFORMIO_CI_SRC=ROBOT_GAS_MAPPING/lib/AsyncTCP/src/AsyncTCP.h
     - PLATFORMIO_CI_SRC=ROBOT_GAS_MAPPING/lib/MPU6050/MPU6050.h
     - PLATFORMIO_CI_SRC=ROBOT_GAS_MAPPING/lib/I2Cdev/I2Cdev.h
 cache:
@@ -22,6 +20,9 @@ install:
     - platformio lib -g install https://github.com/bblanchon/ArduinoJson
     - platformio lib -g install https://github.com/pololu/vl53l0x-arduino
     - platformio lib -g install https://github.com/madhephaestus/ESP32Servo
+    - platformio lib -g install https://github.com/pkerspe/ESP-FlexyStepper
+    - platformio lib -g install https://github.com/me-no-dev/AsyncTCP
+    - platformio lib -g install https://github.com/me-no-dev/ESPAsyncWebServer
 
 script:
     -  - pio ci --lib="." --board=esp32doit-devkit-v1
