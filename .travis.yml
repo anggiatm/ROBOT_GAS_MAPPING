@@ -6,8 +6,8 @@ python:
 sudo: false
 
 env:
-    - PLATFORMIO_CI_SRC=ROBOT_GAS_MAPPING/lib/MPU6050/MPU6050.h
-    - PLATFORMIO_CI_SRC=ROBOT_GAS_MAPPING/lib/I2Cdev/I2Cdev.h
+    - PLATFORMIO_CI_SRC=/home/travis/ROBOT_GAS_MAPPING/lib/MPU6050/MPU6050.h
+    - PLATFORMIO_CI_SRC=/home/travis/ROBOT_GAS_MAPPING/lib/I2Cdev/I2Cdev.h
 cache:
     directories:
         - "~/.platformio"
