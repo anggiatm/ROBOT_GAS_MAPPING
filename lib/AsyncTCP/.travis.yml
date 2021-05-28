@@ -25,4 +25,4 @@ install:
     - platformio lib -g install https://github.com/madhephaestus/ESP32Servo
 
 script:
-    - pio run -e <esp32doit-devkit-v1>
+    -  - pio ci --lib="." --board=esp32doit-devkit-v1
