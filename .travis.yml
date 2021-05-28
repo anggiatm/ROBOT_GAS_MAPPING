@@ -16,7 +16,6 @@ cache:
 install:
     - pip install -U platformio
     - pio update
-    - platformio lib -g install https://github.com/espressif/arduino-esp32
     - platformio lib -g install https://github.com/bblanchon/ArduinoJson
     - platformio lib -g install https://github.com/pololu/vl53l0x-arduino
     - platformio lib -g install https://github.com/madhephaestus/ESP32Servo
