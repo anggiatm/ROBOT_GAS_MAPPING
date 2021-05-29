@@ -60,7 +60,7 @@
 // #include "sdkconfig.h"
 #include <VL53L0X.h>
 #include <ESP32Servo.h>
-#include <ArduinoJSON.h>
+#include <ArduinoJson.h>
 
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     #include "Wire.h"
