@@ -5,9 +5,6 @@ python:
 # Cache PlatformIO packages using Travis CI container-based infrastructure
 sudo: false
 
-env:
-    - PLATFORMIO_CI_SRC=anggiatm/ROBOT_GAS_MAPPING/lib/MPU6050/MPU6050.h
-    - PLATFORMIO_CI_SRC=anggiatm/ROBOT_GAS_MAPPING/lib/I2Cdev/I2Cdev.h
 cache:
     directories:
         - "~/.platformio"
