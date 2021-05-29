@@ -20,4 +20,4 @@ install:
     - platformio lib -g install https://github.com/me-no-dev/ESPAsyncWebServer
 
 script:
-    -  - pio ci --lib="." --board=esp32doit-devkit-v1
+    - pio ci --lib="." --board=esp32doit-devkit-v1
