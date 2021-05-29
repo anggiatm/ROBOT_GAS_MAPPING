@@ -1,7 +1,8 @@
 ﻿# ROBOT GAS MAPPING
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/anggiatm/ROBOT_GAS_MAPPING/blob/main/LICENSE)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/5eeefc5d0f9d430ba46fe51ec099c329)](https://www.codacy.com/gh/anggiatm/ROBOT_GAS_MAPPING/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=anggiatm/ROBOT_GAS_MAPPING&amp;utm_campaign=Badge_Grade)
- #
+[![Build Status](https://travis-ci.com/anggiatm/ROBOT_GAS_MAPPING.svg?branch=main)](https://travis-ci.com/anggiatm/ROBOT_GAS_MAPPING)
+#
 PROJECT INI DIBUAT UNTUK BAHAN SKRIPSI
 FMIPA | ILMU KOMPUTER | UNIVERSITAS PAKUAN | 2021
 
