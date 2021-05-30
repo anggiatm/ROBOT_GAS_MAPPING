@@ -1,13 +1,11 @@
-# C/C++ with GCC
-# Build your C/C++ project with GCC using make.
-# Add steps that publish test results, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/apps/c-cpp/gcc
+# Builds the  ESP32 firmware in the [example](example) folder with
+# the *infinitecoding/platformio-for-ci* Docker image and uploads the firmware as artifact.
 
 trigger:
-- main
+- azure-pipelines
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: 'ubuntu-latest'
 
 resources:
   containers:
@@ -17,6 +15,19 @@ resources:
 
 container: platformio
 steps:
-- script: platformio run -e esp32doit-devkit-v1
+
+- script: platformio run -d ./
   displayName: 'Build firmware'
 
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: '$(Build.SourcesDirectory)/.pio/build/esp32doit-devkit-v1'
+    Contents: 'firmware.bin'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    ArtifactName: 'Firmware $(Build.BuildNumber)'
+    PathtoPublish: $(Build.ArtifactStagingDirectory)
+    publishLocation: Container
+    TargetPath: .
