@@ -5,7 +5,7 @@ trigger:
 - azure-pipelines
 
 pool:
-  vmImage: 'ubuntu-latest'
+  vmImage: ubuntu-latest
 
 resources:
   containers:
