@@ -11,7 +11,6 @@ cache:
         - $HOME/.cache/pip
 
 before_install:
-    - pip install -U cpp-coveralls
     - pip install -U platformio
 
 install:
@@ -24,7 +23,3 @@ install:
 
 script:
      - pio run -e esp32doit-devkit-v1
-     - ./configure --enable-gcov && make && make check
-after_success:
-     - coveralls --exclude lib --exclude tests --gcov-options '\-lp'
-
