@@ -7,26 +7,3 @@ trigger:
 pool:
   vmImage: ubuntu-latest
 
-resources:
-  containers:
-  - container: platformio
-    image: infinitecoding/platformio-for-ci:latest
-
-container: platformio
-steps:
-
-- script: platformio run -d ./
-  displayName: 'Build firmware'
-
-- task: CopyFiles@2
-  inputs:
-    SourceFolder: '$(Build.SourcesDirectory)/.pio/build/esp32doit-devkit-v1'
-    Contents: 'firmware.bin'
-    TargetFolder: '$(Build.ArtifactStagingDirectory)'
-
-- task: PublishBuildArtifacts@1
-  inputs:
-    ArtifactName: 'Firmware $(Build.BuildNumber)'
-    PathtoPublish: $(Build.ArtifactStagingDirectory)
-    publishLocation: Container
-    TargetPath: .
