@@ -1,9 +1,0 @@
-# Builds the  ESP32 firmware in the [example](example) folder with
-# the *infinitecoding/platformio-for-ci* Docker image and uploads the firmware as artifact.
-
-trigger:
-- main
-
-pool:
-  vmImage: ubuntu-latest
-
