@@ -12,7 +12,7 @@ cache:
 
 install:
     - pip install -U platformio
-    - pip install --user cpp-coveralls
+    - pip install -U cpp-coveralls
     - platformio lib -g install https://github.com/bblanchon/ArduinoJson
     - platformio lib -g install https://github.com/pololu/vl53l0x-arduino
     - platformio lib -g install https://github.com/madhephaestus/ESP32Servo
