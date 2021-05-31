@@ -43,7 +43,7 @@
  *                                                      
 */
 
-#include <Arduino.h>
+// #include <Arduino.h>
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
@@ -60,6 +60,7 @@
 #include <VL53L0X.h>
 #include <ESP32Servo.h>
 #include <ArduinoJson.h>
+#include "SparkFun_SGP30_Arduino_Library.h" 
 
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     #include "Wire.h"
@@ -84,9 +85,8 @@
 #define DIR_L 25
 #define STEP_L 26
 
-#define SPEED_MM_PER_SECOND 35
-#define ACCELERATION_MM_PER_SECOND 140
-#define DECELERATION_MM_PER_SECOND 140
+// #define SPEED_MM_PER_SECOND 35
+#define SPEED_STEP_PER_SECOND 100
 
 #define SERVO_NEUTRAL 99
 #define SERVO_RUN_CW 94
@@ -107,6 +107,7 @@ TaskHandle_t Client_Task_Handle;
 VL53L0X sensor;
 Servo motor;
 MPU6050 mpu;
+SGP30 SENSOR_VOC;
 
 // StaticJsonDocument<9216> doc;
 DynamicJsonDocument doc(9216); // fixed size 9216
@@ -169,7 +170,7 @@ void forward(int target){
   MOTOR_R.setTargetPositionInSteps(target_step);
   MOTOR_L.setTargetPositionInSteps(target_step);
 
-  while (MOTOR_L.getCurrentPositionInSteps() != target_step){
+  while (MOTOR_L.getCurrentPositionInSteps() != target_step && MOTOR_R.getCurrentPositionInSteps() != target_step){
     Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
     Serial.println(MOTOR_L.getCurrentPositionInSteps());
     // Serial.println(MOTOR_L.getTaskStackHighWaterMark());
@@ -189,7 +190,7 @@ void setHeading(int target){
   MOTOR_R.setTargetPositionInMillimeters(-target_step);
   MOTOR_L.setTargetPositionInMillimeters(target_step);
 
-  while (MOTOR_L.getCurrentPositionInSteps() != target_step){
+  while (MOTOR_L.getCurrentPositionInSteps() != target_step && MOTOR_R.getCurrentPositionInSteps() != -target_step){
     Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
     Serial.println(MOTOR_L.getCurrentPositionInSteps());
     // Serial.println(MOTOR_L.getTaskStackHighWaterMark());
@@ -253,35 +254,6 @@ void task_display(void *pvParameters){
   vTaskDelete(NULL);
 }
 
-void scanWall(){
-  count = 0;
-  int hall = 0;
-  int old_hall = 0;
-  
-  motor.write(SERVO_RUN_CW);
-  while (count <= 1){
-    hall = digitalRead(HALL_SENSOR);
-      if (hall != old_hall){
-        old_hall = hall;
-        count = count + 1;
-      }
-    angle = getAngle();
-    if (angle != angle_old){
-      root["a"+String(angle)] = sensor.readRangeSingleMillimeters();
-      angle_old = angle;
-      Serial.println(angle);
-    }
-  }
-  motor.write(SERVO_NEUTRAL);
-  root["voc"] = 0.0;
-  root["co2"] = 0.0;
-  root["asap"] = 0.0;
-  root["temp"] = 0.0;
-  root["hum"] = 0.0;
-  size_t len = serializeJson(root, buffer);  // serialize to buffer
-  ws.textAll(buffer, len); // send buffer to web socket
-  // Serial.println(buffer);
-}
 
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
@@ -305,16 +277,9 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     }
 
     else if (command == "readsensor"){
-      // MOTOR_R.suspendService();
-      // MOTOR_L.suspendService();
       Serial.println("DEBUG : Reading Sensor..........");
       scanTask = 1;
-      // scanWall();
       Serial.println("DEBUG : Read Sensor Complete..........");
-      // MOTOR_R.resumeService();
-      // MOTOR_L.resumeService();
-      //clearPosition();
-      //sendHeading();
     }
     
     else {
@@ -400,6 +365,14 @@ void setup(){
     return;
   }
 
+  if (SENSOR_VOC.begin() == false) {
+    Serial.println("No SGP30 Detected. Check connections.");
+    while (1);
+  }
+  //Initializes sensor for air quality readings
+  //measureAirQuality should be called in one second increments after a call to initAirQuality
+  SENSOR_VOC.initAirQuality();
+
   pinMode(HALL_SENSOR, INPUT);
   pinMode(LED, OUTPUT);
   sensorAlignment();
@@ -443,20 +416,17 @@ void setup(){
     Serial.println(F("DMP ready! Waiting for first interrupt..."));
     dmpReady = true;
     packetSize = mpu.dmpGetFIFOPacketSize();
-  } else {
-      Serial.print(F("DMP Initialization failed (code "));
-      Serial.print(devStatus);
-      Serial.println(F(")"));
+  } 
+  else {
+    Serial.print(F("DMP Initialization failed (code "));
+    Serial.print(devStatus);
+    Serial.println(F(")"));
   }
 
   MOTOR_R.connectToPins(STEP_R, DIR_R);
   MOTOR_L.connectToPins(STEP_L, DIR_L);
-  MOTOR_R.setStepsPerMillimeter(STEP_PER_MM);
-  MOTOR_L.setStepsPerMillimeter(STEP_PER_MM);
-  MOTOR_R.setSpeedInMillimetersPerSecond(SPEED_MM_PER_SECOND);
-  MOTOR_L.setSpeedInMillimetersPerSecond(SPEED_MM_PER_SECOND);
-  //MOTOR_R.setAccelerationInMillimetersPerSecondPerSecond(ACCELERATION_MM_PER_SECOND);
-  //MOTOR_L.setDecelerationInMillimetersPerSecondPerSecond(DECELERATION_MM_PER_SECOND);
+  MOTOR_R.setSpeedInStepsPerSecond(SPEED_STEP_PER_SECOND);
+  MOTOR_L.setSpeedInStepsPerSecond(SPEED_STEP_PER_SECOND);
   
   // Connect to Wi-Fi
   WiFi.begin(ssid, password);
@@ -464,7 +434,6 @@ void setup(){
     delay(1000);
     Serial.println("Connecting to WiFi..");
   }
-
   
   initWebSocket();
 
@@ -506,4 +475,12 @@ void setup(){
 }
 
 void loop() {
+  delay(1000); //Wait 1 second
+  //measure CO2 and TVOC levels
+  SENSOR_VOC.measureAirQuality();
+  Serial.print("CO2: ");
+  Serial.print(SENSOR_VOC.CO2);
+  Serial.print(" ppm\tTVOC: ");
+  Serial.print(SENSOR_VOC.TVOC);
+  Serial.println(" ppb");
 }
