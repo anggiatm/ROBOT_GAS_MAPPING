@@ -113,6 +113,24 @@ void sendHeading(){
   ws.textAll(String("heading-value"));
 }
 
+int getAngle(){
+    // int mapa;
+    mpu.dmpGetCurrentFIFOPacket(fifoBuffer);
+    mpu.dmpGetQuaternion(&q, fifoBuffer);
+    mpu.dmpGetGravity(&gravity, &q);
+    mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+    // int raw = (ypr[0] * 57.2958)+180;
+    // if (raw<=180){
+    //     mapa = map(raw, 180, 0, 0, 180);
+    // }
+    // else {
+    //     mapa = map(raw, 359, 181, 181, 359);
+    // }
+    // return mapa;
+    // return raw;
+    return (ypr[0] * 57.2958)+180;
+}
+
 void forward(int target){
   digitalWrite(STEPPER_ENABLE_PIN, LOW);
   MOTOR_R.resumeService();
@@ -135,44 +153,67 @@ void forward(int target){
   digitalWrite(STEPPER_ENABLE_PIN, HIGH);
 }
 
+int calculateToTargetHeading(int target_increment){
+  int mpu_target = getAngle() + target_increment;
+  if (mpu_target>360){
+    mpu_target = mpu_target - 360;
+  } else if(mpu_target < 0){
+    mpu_target = 360 + mpu_target;
+  }
+  return mpu_target;
+}
+
+int calculateAngleRemaining(int mpu_target){
+  
+  // RUMUS UTAMA
+  int angle_reamining = mpu_target - getAngle();
+  Serial.println(angle_reamining);
+  if (angle_reamining > 180){
+    angle_reamining = angle_reamining - 360;
+  } else if (angle_reamining < -180){
+    angle_reamining = angle_reamining + 360;
+  }
+  return -angle_reamining;
+}
+
 void setHeading(int target){
   digitalWrite(STEPPER_ENABLE_PIN, LOW);
   MOTOR_R.resumeService();
   MOTOR_L.resumeService();
-  long target_step = target*STEP_PER_MM;
+  // long target_step = target*STEP_PER_MM*MM_PER_DEGREE;
 
   MOTOR_R.setCurrentPositionInSteps(0);
   MOTOR_L.setCurrentPositionInSteps(0);
-  MOTOR_R.setTargetPositionInMillimeters(-target_step);
-  MOTOR_L.setTargetPositionInMillimeters(target_step);
+  MOTOR_R.setSpeedInStepsPerSecond(80);
+  MOTOR_L.setSpeedInStepsPerSecond(80);
 
-  while (MOTOR_L.getCurrentPositionInSteps() != target_step && MOTOR_R.getCurrentPositionInSteps() != -target_step){
+  int mpu_target = calculateToTargetHeading(target);
+
+  while (target > 2 || target < -2){
+    target = calculateAngleRemaining(mpu_target);
+    long target_step = target*STEP_PER_MM*MM_PER_DEGREE;
+    MOTOR_R.setTargetPositionRelativeInSteps(-target_step);
+    MOTOR_L.setTargetPositionRelativeInSteps(target_step);
     Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
     Serial.println(MOTOR_L.getCurrentPositionInSteps());
-    // Serial.println(MOTOR_L.getTaskStackHighWaterMark());
+    
+    // MOTOR_R.setTargetPositionInMillimeters(-target_step);
+    // MOTOR_L.setTargetPositionInMillimeters(target_step);
   }
+  
+
+  // while (MOTOR_L.getCurrentPositionInSteps() != target_step && MOTOR_R.getCurrentPositionInSteps() != -target_step){
+  //   Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
+  //   Serial.println(MOTOR_L.getCurrentPositionInSteps());
+  //   // Serial.println(MOTOR_L.getTaskStackHighWaterMark());
+  // }
+
   MOTOR_R.suspendService();
   MOTOR_L.suspendService();
   digitalWrite(STEPPER_ENABLE_PIN, HIGH);
 }
 
-int getAngle(){
-    // int mapa;
-    mpu.dmpGetCurrentFIFOPacket(fifoBuffer);
-    mpu.dmpGetQuaternion(&q, fifoBuffer);
-    mpu.dmpGetGravity(&gravity, &q);
-    mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-    // int raw = (ypr[0] * 57.2958)+180;
-    // if (raw<=180){
-    //     mapa = map(raw, 180, 0, 0, 180);
-    // }
-    // else {
-    //     mapa = map(raw, 359, 181, 181, 359);
-    // }
-    // return mapa;
-    // return raw;
-    return (ypr[0] * 57.2958)+180;
-}
+
 
 // MPU REALTIME DEBUG
 void task_display(void *pvParameters){

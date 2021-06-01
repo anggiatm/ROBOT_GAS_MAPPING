@@ -13,7 +13,6 @@
 #include <ArduinoJson.h>
 #include "SparkFun_SGP30_Arduino_Library.h"
 
-
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     #include "Wire.h"
 #endif
@@ -29,8 +28,8 @@
 //#define PIN_SCL 22
 
 #define STEP_PER_MM 3.637827270671893389
-//#define MM_PER_DEGREE 0.82903139469730654904   //95mm Diameter
 #define MM_PER_DEGREE 0.84648468721724984481     //97mm Diameter
+//#define MM_PER_DEGREE 0.82903139469730654904   //95mm Diameter
 
 #define DIR_R 32
 #define STEP_R 33
@@ -39,7 +38,7 @@
 #define STEPPER_ENABLE_PIN 13
 
 // #define SPEED_MM_PER_SECOND 35
-#define SPEED_STEP_PER_SECOND 100
+#define SPEED_STEP_PER_SECOND 120
 
 #define SERVO_NEUTRAL 99
 #define SERVO_RUN_CW 94
@@ -51,7 +50,6 @@
 class robot {
     public:
     robot();
-    String splitString();
 };
 
 #endif
