@@ -1082,111 +1082,111 @@ void ESP_FlexyStepper::setTargetPositionToStop()
 //
 bool ESP_FlexyStepper::processMovement(void)
 {
-  if (emergencyStopActive)
-  {
-    //abort potentially running homing movement
-    this->isOnWayToHome = false;
-    this->isOnWayToLimit = false;
+  // if (emergencyStopActive)
+  // {
+  //   //abort potentially running homing movement
+  //   this->isOnWayToHome = false;
+  //   this->isOnWayToLimit = false;
 
-    currentStepPeriod_InUS = 0.0;
-    nextStepPeriod_InUS = 0.0;
-    directionOfMotion = 0;
-    targetPosition_InSteps = currentPosition_InSteps;
+  //   currentStepPeriod_InUS = 0.0;
+  //   nextStepPeriod_InUS = 0.0;
+  //   directionOfMotion = 0;
+  //   targetPosition_InSteps = currentPosition_InSteps;
 
-    //activate brake (if configured) driectly due to emergency stop if not already active
-    if (this->_isBrakeConfigured && !this->_isBrakeActive)
-    {
-      this->activateBrake();
-    }
+  //   //activate brake (if configured) driectly due to emergency stop if not already active
+  //   if (this->_isBrakeConfigured && !this->_isBrakeActive)
+  //   {
+  //     this->activateBrake();
+  //   }
 
-    if (!this->holdEmergencyStopUntilExplicitRelease)
-    {
-      emergencyStopActive = false;
-    }
-    return (true);
-  }
+  //   if (!this->holdEmergencyStopUntilExplicitRelease)
+  //   {
+  //     emergencyStopActive = false;
+  //   }
+  //   return (true);
+  // }
 
   //check if delayed brake shall be engaged / released
-  if (this->_timeToEngangeBrake != LONG_MAX && this->_timeToEngangeBrake <= millis())
-  {
-    this->activateBrake();
-  }
-  else if (this->_timeToReleaseBrake != LONG_MAX && this->_timeToReleaseBrake <= millis())
-  {
-    this->deactivateBrake();
-  }
+  // if (this->_timeToEngangeBrake != LONG_MAX && this->_timeToEngangeBrake <= millis())
+  // {
+  //   this->activateBrake();
+  // }
+  // else if (this->_timeToReleaseBrake != LONG_MAX && this->_timeToReleaseBrake <= millis())
+  // {
+  //   this->deactivateBrake();
+  // }
 
   long distanceToTarget_Signed;
 
   //check if limit switch flag is active
-  if (this->activeLimitSwitch != 0)
-  {
-    distanceToTarget_Signed = targetPosition_InSteps - currentPosition_InSteps;
+  // if (this->activeLimitSwitch != 0)
+  // {
+  //   distanceToTarget_Signed = targetPosition_InSteps - currentPosition_InSteps;
 
-    if (!this->limitSwitchCheckPeformed)
-    {
-      this->limitSwitchCheckPeformed = true;
+  //   if (!this->limitSwitchCheckPeformed)
+  //   {
+  //     this->limitSwitchCheckPeformed = true;
 
-      //a limit switch is active, so movement is only allowed in one direction (away from the switch)
-      if (this->activeLimitSwitch == this->LIMIT_SWITCH_BEGIN)
-      {
-        this->disallowedDirection = this->directionTowardsHome;
-      }
-      else if (this->activeLimitSwitch == this->LIMIT_SWITCH_END)
-      {
-        this->disallowedDirection = this->directionTowardsHome * -1;
-      }
-      else if (this->activeLimitSwitch == this->LIMIT_SWITCH_COMBINED_BEGIN_AND_END)
-      {
-        //limit switches are paired together, so we need to try to figure out by checking which one it is, by using the last used step direction
-        if (distanceToTarget_Signed > 0)
-        {
-          this->lastStepDirectionBeforeLimitSwitchTrigger = 1;
-          this->disallowedDirection = 1;
-        }
-        else if (distanceToTarget_Signed < 0)
-        {
-          this->lastStepDirectionBeforeLimitSwitchTrigger = -1;
-          this->disallowedDirection = -1;
-        }
-      }
+  //     //a limit switch is active, so movement is only allowed in one direction (away from the switch)
+  //     if (this->activeLimitSwitch == this->LIMIT_SWITCH_BEGIN)
+  //     {
+  //       this->disallowedDirection = this->directionTowardsHome;
+  //     }
+  //     else if (this->activeLimitSwitch == this->LIMIT_SWITCH_END)
+  //     {
+  //       this->disallowedDirection = this->directionTowardsHome * -1;
+  //     }
+  //     else if (this->activeLimitSwitch == this->LIMIT_SWITCH_COMBINED_BEGIN_AND_END)
+  //     {
+  //       //limit switches are paired together, so we need to try to figure out by checking which one it is, by using the last used step direction
+  //       if (distanceToTarget_Signed > 0)
+  //       {
+  //         this->lastStepDirectionBeforeLimitSwitchTrigger = 1;
+  //         this->disallowedDirection = 1;
+  //       }
+  //       else if (distanceToTarget_Signed < 0)
+  //       {
+  //         this->lastStepDirectionBeforeLimitSwitchTrigger = -1;
+  //         this->disallowedDirection = -1;
+  //       }
+  //     }
 
-      //movement has been triggerd by goToLimitAndSetAsHome() function. so once the limit switch has been triggered we have reached the limit and need to set it as home
-      if (this->isOnWayToHome)
-      {
-        this->setCurrentPositionAsHomeAndStop(); //clear isOnWayToHome flag and stop motion
+  //     //movement has been triggerd by goToLimitAndSetAsHome() function. so once the limit switch has been triggered we have reached the limit and need to set it as home
+  //     if (this->isOnWayToHome)
+  //     {
+  //       this->setCurrentPositionAsHomeAndStop(); //clear isOnWayToHome flag and stop motion
 
-        if (this->_homeReachedCallback != NULL)
-        {
-          this->_homeReachedCallback();
-        }
-        //activate brake (or schedule activation) since we reached the final position
-        if (this->_isBrakeConfigured && !this->_isBrakeActive)
-        {
-          this->triggerBrakeIfNeededOrSetTimeout();
-        }
-        return true;
-      }
-    }
+  //       if (this->_homeReachedCallback != NULL)
+  //       {
+  //         this->_homeReachedCallback();
+  //       }
+  //       //activate brake (or schedule activation) since we reached the final position
+  //       if (this->_isBrakeConfigured && !this->_isBrakeActive)
+  //       {
+  //         this->triggerBrakeIfNeededOrSetTimeout();
+  //       }
+  //       return true;
+  //     }
+  //   }
 
-    //check if further movement is allowed
-    if (
-        (this->disallowedDirection == 1 && distanceToTarget_Signed > 0) ||
-        (this->disallowedDirection == -1 && distanceToTarget_Signed < 0))
-    {
-      //limit switch is acitve and movement in request direction is not allowed
-      currentStepPeriod_InUS = 0.0;
-      nextStepPeriod_InUS = 0.0;
-      directionOfMotion = 0;
-      targetPosition_InSteps = currentPosition_InSteps;
-      //activate brake (or schedule activation) since limit is active for requested direction
-      if (this->_isBrakeConfigured && !this->_isBrakeActive)
-      {
-        this->triggerBrakeIfNeededOrSetTimeout();
-      }
-      return true;
-    }
-  }
+  //   //check if further movement is allowed
+  //   if (
+  //       (this->disallowedDirection == 1 && distanceToTarget_Signed > 0) ||
+  //       (this->disallowedDirection == -1 && distanceToTarget_Signed < 0))
+  //   {
+  //     //limit switch is acitve and movement in request direction is not allowed
+  //     currentStepPeriod_InUS = 0.0;
+  //     nextStepPeriod_InUS = 0.0;
+  //     directionOfMotion = 0;
+  //     targetPosition_InSteps = currentPosition_InSteps;
+  //     //activate brake (or schedule activation) since limit is active for requested direction
+  //     if (this->_isBrakeConfigured && !this->_isBrakeActive)
+  //     {
+  //       this->triggerBrakeIfNeededOrSetTimeout();
+  //     }
+  //     return true;
+  //   }
+  // }
 
   unsigned long currentTime_InUS;
   unsigned long periodSinceLastStep_InUS;

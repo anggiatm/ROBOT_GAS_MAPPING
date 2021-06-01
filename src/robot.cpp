@@ -43,59 +43,10 @@
  *                                                      
 */
 
-// #include <Arduino.h>
-#include <WiFi.h>
-#include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
-#include <SPIFFS.h>
-#include <ESP_FlexyStepper.h>
-// #include "Arduino_FreeRTOS.h"
-// #include <driver/i2c.h>
-// #include <esp_log.h>
-// #include <esp_err.h>
-// #include <freertos/FreeRTOS.h>
-// #include <freertos/task.h>
-#include "MPU6050_6Axis_MotionApps20.h"
-// #include "sdkconfig.h"
-#include <VL53L0X.h>
-#include <ESP32Servo.h>
-#include <ArduinoJson.h>
-#include "SparkFun_SGP30_Arduino_Library.h" 
+#include <robot.h>
 
-#if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
-    #include "Wire.h"
-#endif
 
-#ifndef M_PI
-    #define M_PI 3.14159265358979323846
-#endif
 
-#define INTERRUPT_PIN 5
-#define OUTPUT_READABLE_YAWPITCHROLL
-
-//#define PIN_SDA 21
-//#define PIN_SCL 22
-
-#define STEP_PER_MM 3.637827270671893389
-//#define MM_PER_DEGREE 0.82903139469730654904   //95mm Diameter
-#define MM_PER_DEGREE 0.84648468721724984481     //97mm Diameter
-
-#define DIR_R 32
-#define STEP_R 33
-#define DIR_L 25
-#define STEP_L 26
-
-// #define SPEED_MM_PER_SECOND 35
-#define SPEED_STEP_PER_SECOND 100
-
-#define SERVO_NEUTRAL 99
-#define SERVO_RUN_CW 94
-#define SERVO_RUN_ALIGNMENT 96
-
-#define HALL_SENSOR 19  // INVERTED !!! || ON = 0 || OFF = 1
-#define LED 2
-
-//#define MM_PER_DEGREE 0.82903139469730654904
 
 ESP_FlexyStepper MOTOR_R;
 ESP_FlexyStepper MOTOR_L;
@@ -141,6 +92,8 @@ const char* password = "123456789";
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
+int Gas_analog = 34;    // used for ESP32
+
 String splitString(String data, char separator, int index){
   int found = 0;
   int strIndex[] = {0, -1};
@@ -161,6 +114,7 @@ void sendHeading(){
 }
 
 void forward(int target){
+  digitalWrite(STEPPER_ENABLE_PIN, LOW);
   MOTOR_R.resumeService();
   MOTOR_L.resumeService();
   long target_step = target*STEP_PER_MM;
@@ -178,9 +132,11 @@ void forward(int target){
   
   MOTOR_R.suspendService();
   MOTOR_L.suspendService();
+  digitalWrite(STEPPER_ENABLE_PIN, HIGH);
 }
 
 void setHeading(int target){
+  digitalWrite(STEPPER_ENABLE_PIN, LOW);
   MOTOR_R.resumeService();
   MOTOR_L.resumeService();
   long target_step = target*STEP_PER_MM;
@@ -197,6 +153,7 @@ void setHeading(int target){
   }
   MOTOR_R.suspendService();
   MOTOR_L.suspendService();
+  digitalWrite(STEPPER_ENABLE_PIN, HIGH);
 }
 
 int getAngle(){
@@ -373,8 +330,12 @@ void setup(){
   //measureAirQuality should be called in one second increments after a call to initAirQuality
   SENSOR_VOC.initAirQuality();
 
+
+
   pinMode(HALL_SENSOR, INPUT);
   pinMode(LED, OUTPUT);
+  pinMode(STEPPER_ENABLE_PIN, OUTPUT);
+  digitalWrite(STEPPER_ENABLE_PIN, HIGH);
   sensorAlignment();
 
   sensor.setTimeout(500);
@@ -465,7 +426,7 @@ void setup(){
   server.begin();
   xTaskCreate(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle);
   //digitalWrite(ledPin, HIGH);
-  delay(3000);
+  delay(1000);
   dmpReady = true;
   MOTOR_R.suspendService();
   MOTOR_L.suspendService();
@@ -475,12 +436,16 @@ void setup(){
 }
 
 void loop() {
-  delay(1000); //Wait 1 second
-  //measure CO2 and TVOC levels
-  SENSOR_VOC.measureAirQuality();
-  Serial.print("CO2: ");
-  Serial.print(SENSOR_VOC.CO2);
-  Serial.print(" ppm\tTVOC: ");
-  Serial.print(SENSOR_VOC.TVOC);
-  Serial.println(" ppb");
+  // delay(1000); //Wait 1 second
+  // //measure CO2 and TVOC levels
+  // SENSOR_VOC.measureAirQuality();
+  // Serial.print("CO2: ");
+  // Serial.print(SENSOR_VOC.CO2);
+  // Serial.print(" ppm\tTVOC: ");
+  // Serial.print(SENSOR_VOC.TVOC);
+  // Serial.println(" ppb");
+
+  // int gassensorAnalog = analogRead(Gas_analog);
+  // Serial.print(gassensorAnalog);
+
 }
