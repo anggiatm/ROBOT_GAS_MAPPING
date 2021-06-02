@@ -131,49 +131,68 @@ int getAngle(){
     return (ypr[0] * 57.2958)+180;
 }
 
-void forward(int target){
-  digitalWrite(STEPPER_ENABLE_PIN, LOW);
-  MOTOR_R.resumeService();
-  MOTOR_L.resumeService();
-  long target_step = target*STEP_PER_MM;
-
-  MOTOR_R.setCurrentPositionInSteps(0);
-  MOTOR_L.setCurrentPositionInSteps(0);
-  MOTOR_R.setTargetPositionInSteps(target_step);
-  MOTOR_L.setTargetPositionInSteps(target_step);
-
-  while (MOTOR_L.getCurrentPositionInSteps() != target_step && MOTOR_R.getCurrentPositionInSteps() != target_step){
-    Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
-    Serial.println(MOTOR_L.getCurrentPositionInSteps());
-    // Serial.println(MOTOR_L.getTaskStackHighWaterMark());
-  }
-  
-  MOTOR_R.suspendService();
-  MOTOR_L.suspendService();
-  digitalWrite(STEPPER_ENABLE_PIN, HIGH);
-}
-
 int calculateToTargetHeading(int target_increment){
   int mpu_target = getAngle() + target_increment;
   if (mpu_target>360){
     mpu_target = mpu_target - 360;
-  } else if(mpu_target < 0){
+  }
+  if(mpu_target < 0){
     mpu_target = 360 + mpu_target;
   }
   return mpu_target;
 }
 
 int calculateAngleRemaining(int mpu_target){
-  
   // RUMUS UTAMA
-  int angle_reamining = mpu_target - getAngle();
+  int angle_reamining = getAngle() - mpu_target;
   Serial.println(angle_reamining);
   if (angle_reamining > 180){
     angle_reamining = angle_reamining - 360;
-  } else if (angle_reamining < -180){
+  }
+  if (angle_reamining < -180){
     angle_reamining = angle_reamining + 360;
   }
-  return -angle_reamining;
+  return angle_reamining;
+}
+
+void forward(int target){
+  digitalWrite(STEPPER_ENABLE_PIN, LOW);
+  MOTOR_R.resumeService();
+  MOTOR_L.resumeService();
+  long target_step_r = target*STEP_PER_MM;
+  long target_step_l = target*STEP_PER_MM;
+
+  MOTOR_R.setCurrentPositionInSteps(0);
+  MOTOR_L.setCurrentPositionInSteps(0);
+  // MOTOR_R.setTargetPositionInSteps(target_step);
+  // MOTOR_L.setTargetPositionInSteps(target_step);
+  int angle_stamp = getAngle();
+  int angle_glide = calculateAngleRemaining(angle_stamp);;
+
+  while (MOTOR_R.getCurrentPositionInSteps() != target_step_r && MOTOR_L.getCurrentPositionInSteps() != target_step_l){
+    angle_glide = calculateAngleRemaining(angle_stamp);
+    if (angle_glide > 5){
+      target_step_r = target_step_r + (calculateAngleRemaining(angle_stamp)*STEP_PER_MM*MM_PER_DEGREE);
+      target_step_l = target_step_l - (calculateAngleRemaining(angle_stamp)*STEP_PER_MM*MM_PER_DEGREE);
+    }
+    if (angle_glide < -5){
+      target_step_r = target_step_r - (calculateAngleRemaining(angle_stamp)*STEP_PER_MM*MM_PER_DEGREE);
+      target_step_l = target_step_l + (calculateAngleRemaining(angle_stamp)*STEP_PER_MM*MM_PER_DEGREE);
+    }
+    MOTOR_R.setTargetPositionInSteps(target_step_r);
+    MOTOR_L.setTargetPositionInSteps(target_step_l);
+  }
+  
+
+  // while (MOTOR_L.getCurrentPositionInSteps() != target_step && MOTOR_R.getCurrentPositionInSteps() != target_step){
+  //   Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
+  //   Serial.println(MOTOR_L.getCurrentPositionInSteps());
+  //   // Serial.println(MOTOR_L.getTaskStackHighWaterMark());
+  // }
+  
+  MOTOR_R.suspendService();
+  MOTOR_L.suspendService();
+  digitalWrite(STEPPER_ENABLE_PIN, HIGH);
 }
 
 void setHeading(int target){
@@ -189,7 +208,7 @@ void setHeading(int target){
 
   int mpu_target = calculateToTargetHeading(target);
 
-  while (target > 2 || target < -2){
+  while (target > 1 || target < -1){                           //DEADBAND -1 to 1 degree
     target = calculateAngleRemaining(mpu_target);
     long target_step = target*STEP_PER_MM*MM_PER_DEGREE;
     MOTOR_R.setTargetPositionRelativeInSteps(-target_step);
@@ -197,7 +216,7 @@ void setHeading(int target){
     Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
     Serial.println(MOTOR_L.getCurrentPositionInSteps());
     
-    // MOTOR_R.setTargetPositionInMillimeters(-target_step);
+    // MOTOR_R.setTargetPositionInMillimeters(-target_step);   
     // MOTOR_L.setTargetPositionInMillimeters(target_step);
   }
   
