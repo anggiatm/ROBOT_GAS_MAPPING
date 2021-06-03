@@ -170,8 +170,6 @@ void setHeading(int target){
 
   MOTOR_R.setCurrentPositionInSteps(0);
   MOTOR_L.setCurrentPositionInSteps(0);
-  MOTOR_R.setSpeedInStepsPerSecond(80);
-  MOTOR_L.setSpeedInStepsPerSecond(80);
 
   int mpu_target = calculateToTargetHeading(target);
 
@@ -199,8 +197,6 @@ void forward(int target){
   MOTOR_L.resumeService();
   MOTOR_R.setCurrentPositionInSteps(0);
   MOTOR_L.setCurrentPositionInSteps(0);
-  MOTOR_R.setSpeedInStepsPerSecond(80);
-  MOTOR_L.setSpeedInStepsPerSecond(80);
 
   int angle_stamp = getAngle();
   int angle_glide = calculateAngleRemaining(angle_stamp);
@@ -346,7 +342,7 @@ String processor(const String& var){
 void task_web_client(void*){
 	while(1){
     ws.cleanupClients();
-    vTaskDelay(1);
+    vTaskDelay(200);
   } 
 }
 volatile bool mpuInterrupt = false;
@@ -484,9 +480,9 @@ void setup(){
 
   xTaskCreateUniversal(task_display, "MPU_RUN_TASK", 1024*2, NULL, 1, &MPU_TaskRun_Handle, -1);
   server.begin();
-  xTaskCreate(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle);
+  xTaskCreateUniversal(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle, -1);
   //digitalWrite(ledPin, HIGH);
-  delay(1000);
+  delay(3000);
   dmpReady = true;
   MOTOR_R.suspendService();
   MOTOR_L.suspendService();
