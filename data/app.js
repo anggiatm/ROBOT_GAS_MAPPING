@@ -170,7 +170,7 @@ function initButton() {
 function setHeading(){
   var headingValue = document.getElementById("input_set_heading").value;
   websocket.send('setheading='+headingValue);
-  angle = angle + parseInt(headingValue);
+  angle = angle + parseInt(headingValue, 10);
   console.log(typeof(angle));
 }
 
@@ -178,8 +178,8 @@ function setForward(){
   var forwardValue = document.getElementById("input_set_forward").value;
   websocket.send('setforward='+forwardValue);
   angleMode(RADIANS);
-  corX = corX + parseInt((sin(angle * 0.0174533) * parseInt(forwardValue)));
-  corY = corY + parseInt((cos(angle * 0.0174533) * parseInt(forwardValue)));
+  corX = corX + parseInt((sin(angle * 0.0174533) * parseInt(forwardValue)),10);
+  corY = corY + parseInt((cos(angle * 0.0174533) * parseInt(forwardValue)),10);
 }
 
 function readSensor(){
