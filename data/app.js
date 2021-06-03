@@ -85,6 +85,7 @@ var dotCount = 0;
 window.addEventListener("load", onLoad);
 
 function initWebSocket() {
+  // custom console
   console.log("Trying to open a WebSocket connection...");
   websocket = new WebSocket(gateway);
   websocket.onopen    = onOpen;
