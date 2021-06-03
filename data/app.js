@@ -212,7 +212,9 @@ function draw() {
     strokeWeight(2);
     angleMode(RADIANS);
     for (var i=0; i<wall.length; i++){
-      var a = (i * 0.0174533);
+      var a = i - 180;
+      a = -a + 180;
+      a = (a * 0.0174533);
       var num = parseInt(wall[i], 10);
       if (num){
         var x = ((sin(a) * num * 0.3) + robotCorX);

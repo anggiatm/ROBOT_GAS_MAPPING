@@ -77,6 +77,8 @@ int angle_old = 0;
 int scanTask;
 uint16_t count;
 bool hall_detect;
+int set_heading_running = 0;
+int set_forward_running = 0;
 
 Quaternion q;           // [w, x, y, z]         quaternion container
 VectorFloat gravity;    // [x, y, z]            gravity vector
@@ -128,74 +130,39 @@ int getAngle(){
     // }
     // return mapa;
     // return raw;
-    return (ypr[0] * 57.2958)+180;
+    return (-ypr[0] * 57.2958)+180;
 }
 
 int calculateToTargetHeading(int target_increment){
   int mpu_target = getAngle() + target_increment;
-  if (mpu_target>360){
+  if (mpu_target >= 360){
     mpu_target = mpu_target - 360;
-  }
-  if(mpu_target < 0){
+  } else if(mpu_target < 0){
     mpu_target = 360 + mpu_target;
+  } else{
+    mpu_target = mpu_target;
   }
   return mpu_target;
 }
 
 int calculateAngleRemaining(int mpu_target){
   // RUMUS UTAMA
-  int angle_reamining = getAngle() - mpu_target;
+  int angle_reamining = mpu_target - getAngle();
   Serial.println(angle_reamining);
   if (angle_reamining > 180){
     angle_reamining = angle_reamining - 360;
   }
-  if (angle_reamining < -180){
+  else if (angle_reamining < -180){
     angle_reamining = angle_reamining + 360;
+  }
+  else {
+    angle_reamining = angle_reamining;
   }
   return angle_reamining;
 }
 
-void forward(int target){
-  digitalWrite(STEPPER_ENABLE_PIN, LOW);
-  MOTOR_R.resumeService();
-  MOTOR_L.resumeService();
-  long target_step_r = target*STEP_PER_MM;
-  long target_step_l = target*STEP_PER_MM;
-
-  MOTOR_R.setCurrentPositionInSteps(0);
-  MOTOR_L.setCurrentPositionInSteps(0);
-  // MOTOR_R.setTargetPositionInSteps(target_step);
-  // MOTOR_L.setTargetPositionInSteps(target_step);
-  int angle_stamp = getAngle();
-  int angle_glide = calculateAngleRemaining(angle_stamp);;
-
-  while (MOTOR_R.getCurrentPositionInSteps() != target_step_r && MOTOR_L.getCurrentPositionInSteps() != target_step_l){
-    angle_glide = calculateAngleRemaining(angle_stamp);
-    if (angle_glide > 5){
-      target_step_r = target_step_r + (calculateAngleRemaining(angle_stamp)*STEP_PER_MM*MM_PER_DEGREE);
-      target_step_l = target_step_l - (calculateAngleRemaining(angle_stamp)*STEP_PER_MM*MM_PER_DEGREE);
-    }
-    if (angle_glide < -5){
-      target_step_r = target_step_r - (calculateAngleRemaining(angle_stamp)*STEP_PER_MM*MM_PER_DEGREE);
-      target_step_l = target_step_l + (calculateAngleRemaining(angle_stamp)*STEP_PER_MM*MM_PER_DEGREE);
-    }
-    MOTOR_R.setTargetPositionInSteps(target_step_r);
-    MOTOR_L.setTargetPositionInSteps(target_step_l);
-  }
-  
-
-  // while (MOTOR_L.getCurrentPositionInSteps() != target_step && MOTOR_R.getCurrentPositionInSteps() != target_step){
-  //   Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
-  //   Serial.println(MOTOR_L.getCurrentPositionInSteps());
-  //   // Serial.println(MOTOR_L.getTaskStackHighWaterMark());
-  // }
-  
-  MOTOR_R.suspendService();
-  MOTOR_L.suspendService();
-  digitalWrite(STEPPER_ENABLE_PIN, HIGH);
-}
-
 void setHeading(int target){
+  set_heading_running = 1;
   digitalWrite(STEPPER_ENABLE_PIN, LOW);
   MOTOR_R.resumeService();
   MOTOR_L.resumeService();
@@ -226,7 +193,105 @@ void setHeading(int target){
   //   Serial.println(MOTOR_L.getCurrentPositionInSteps());
   //   // Serial.println(MOTOR_L.getTaskStackHighWaterMark());
   // }
+  MOTOR_R.setCurrentPositionInSteps(0);
+  MOTOR_L.setCurrentPositionInSteps(0);
+  MOTOR_R.suspendService();
+  MOTOR_L.suspendService();
+  digitalWrite(STEPPER_ENABLE_PIN, HIGH);
+  set_heading_running = 0;
+}
 
+
+void forward(int target){
+  set_forward_running = 1;
+  digitalWrite(STEPPER_ENABLE_PIN, LOW);
+  MOTOR_R.resumeService();
+  MOTOR_L.resumeService();
+  long target_step_r = target*STEP_PER_MM;
+  long target_step_l = target*STEP_PER_MM;
+
+  MOTOR_R.setCurrentPositionInSteps(0);
+  MOTOR_L.setCurrentPositionInSteps(0);
+  MOTOR_R.setTargetPositionInSteps(target_step_r);
+  MOTOR_L.setTargetPositionInSteps(target_step_l);
+
+  int angle_stamp = getAngle();
+  int angle_glide = calculateAngleRemaining(angle_stamp);
+
+  while (MOTOR_L.getCurrentPositionInSteps() != target_step_l && MOTOR_R.getCurrentPositionInSteps() != target_step_r){
+    Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
+    Serial.println(MOTOR_L.getCurrentPositionInSteps());
+    MOTOR_R.setTargetPositionInSteps(target_step_r);
+    MOTOR_L.setTargetPositionInSteps(target_step_l);
+    // Serial.println(MOTOR_L.getTaskStackHighWaterMark());
+  }
+  MOTOR_R.setCurrentPositionInSteps(0);
+  MOTOR_L.setCurrentPositionInSteps(0);
+  MOTOR_R.suspendService();
+  MOTOR_L.suspendService();
+  digitalWrite(STEPPER_ENABLE_PIN, HIGH);
+  set_forward_running = 0;
+}
+
+int interupt_stepper_r(){
+  int current_position = MOTOR_R.getCurrentPositionInSteps();
+  MOTOR_R.setCurrentPositionInSteps(0);
+  MOTOR_R.setTargetPositionInSteps(0);
+  return current_position;
+}
+
+int interupt_stepper_l(){
+  int current_position = MOTOR_L.getCurrentPositionInSteps();
+  MOTOR_L.setCurrentPositionInSteps(0);
+  MOTOR_L.setTargetPositionInSteps(0);
+  return current_position;
+}
+
+void forward_mpu_enable(int target){
+  digitalWrite(STEPPER_ENABLE_PIN, LOW);
+  MOTOR_R.resumeService();
+  MOTOR_L.resumeService();
+  MOTOR_R.setCurrentPositionInSteps(0);
+  MOTOR_L.setCurrentPositionInSteps(0);
+
+  int angle_stamp = getAngle();
+  int angle_glide = calculateAngleRemaining(angle_stamp);
+  long target_step_r = target*STEP_PER_MM;
+  long target_step_l = target*STEP_PER_MM;
+  int current_position_r = MOTOR_R.getCurrentPositionInSteps();
+  int current_position_l = MOTOR_L.getCurrentPositionInSteps();
+
+  MOTOR_R.setTargetPositionInSteps(target_step_r);
+  MOTOR_L.setTargetPositionInSteps(target_step_l);
+
+  while (current_position_l != target_step_l && current_position_r != target_step_r){
+    angle_glide = calculateAngleRemaining(angle_stamp);
+    if (angle_glide > 5 || angle_glide < -5){
+      if (set_heading_running == 0){
+        current_position_l = MOTOR_R.getCurrentPositionInSteps();
+        current_position_r = MOTOR_L.getCurrentPositionInSteps();
+        setHeading(calculateAngleRemaining(angle_stamp));
+      }
+      else{
+        Serial.println("Set heading");
+      }
+    }
+    else{
+      if (set_heading_running == 0){
+        MOTOR_R.setTargetPositionInSteps(target_step_r - current_position_r);
+        MOTOR_L.setTargetPositionInSteps(target_step_l - current_position_l);
+        
+      } else
+      {
+        Serial.println("setheading");
+      }
+    }
+    current_position_r = MOTOR_R.getCurrentPositionInSteps();
+    current_position_l = MOTOR_L.getCurrentPositionInSteps();
+  }
+
+  MOTOR_R.setCurrentPositionInSteps(0);
+  MOTOR_L.setCurrentPositionInSteps(0);
   MOTOR_R.suspendService();
   MOTOR_L.suspendService();
   digitalWrite(STEPPER_ENABLE_PIN, HIGH);
@@ -288,7 +353,8 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     else if (command == "setforward"){
       Serial.println("SET FORWARD");
       int val_forward = value.toInt();
-      forward(val_forward);
+      // forward(val_forward);
+      forward_mpu_enable(val_forward);
       //clearPosition();
       //sendHeading();
     }
@@ -496,6 +562,7 @@ void setup(){
 }
 
 void loop() {
+  // Serial.println(getAngle());
   // delay(1000); //Wait 1 second
   // //measure CO2 and TVOC levels
   // SENSOR_VOC.measureAirQuality();

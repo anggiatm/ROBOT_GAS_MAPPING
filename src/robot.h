@@ -50,6 +50,8 @@
 class robot {
     public:
     robot();
+    ~robot();
+    void setHeading(void);
 };
 
 #endif
