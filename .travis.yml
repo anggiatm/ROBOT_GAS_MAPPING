@@ -14,12 +14,12 @@ before_install:
     - pip install -U platformio
 
 install:
-    - platformio lib -g install https://github.com/bblanchon/ArduinoJson
-    - platformio lib -g install https://github.com/pololu/vl53l0x-arduino
-    - platformio lib -g install https://github.com/madhephaestus/ESP32Servo
-    - platformio lib -g install https://github.com/pkerspe/ESP-FlexyStepper
-    - platformio lib -g install https://github.com/me-no-dev/AsyncTCP
-    - platformio lib -g install https://github.com/me-no-dev/ESPAsyncWebServer
+    # - platformio lib -g install https://github.com/bblanchon/ArduinoJson
+    # - platformio lib -g install https://github.com/pololu/vl53l0x-arduino
+    # - platformio lib -g install https://github.com/madhephaestus/ESP32Servo
+    # - platformio lib -g install https://github.com/pkerspe/ESP-FlexyStepper
+    # - platformio lib -g install https://github.com/me-no-dev/AsyncTCP
+    # - platformio lib -g install https://github.com/me-no-dev/ESPAsyncWebServer
 
 script:
      - pio run -e esp32doit-devkit-v1
