@@ -164,13 +164,31 @@ function initButton() {
   document.getElementById('button_set_heading').addEventListener('click', setHeading);
   document.getElementById('button_set_forward').addEventListener('click', setForward);
   document.getElementById('button_read_sensor').addEventListener('click', readSensor);
+  document.getElementById('button_calibrate_mpu').addEventListener('click', calibrateMpu);
   //document.getElementById('button').addEventListener('click', toggle);
+}
+
+function normalizeAngle(a){
+  if (a < 0){
+    a = 360 + a;
+  }
+  if (a >= 360){
+    a = a - 360;
+  }
+  return a;
+}
+
+function calibrateMpu(){
+  var angle_correction = angle + 180;
+  angle_correction = normalizeAngle(angle_correction);
+  websocket.send("calibratempu=" + angle_correction);
 }
 
 function setHeading(){
   var headingValue = document.getElementById("input_set_heading").value;
   websocket.send('setheading='+headingValue);
   angle = angle + parseInt(headingValue, 10);
+  angle = normalizeAngle(angle)
   console.log(typeof(angle));
 }
 
@@ -193,13 +211,29 @@ function drawScanValue(){
 function setup() {
   let canvas = createCanvas(850, 560);
   canvas.position(20, 80);
-  background("#42413F");
 }
 
 function draw() {
-  
+  background("#42413F");
   var robotCorX = (0.3*corX) + 70;
   var robotCorY = -(0.3*corY) + 500;
+  
+  var dataMap = {
+    wall : [
+      [
+        100,150
+      ],
+      [
+        200,200
+      ]
+    ],
+    gas : [
+      [
+        400,400
+      ]
+    ]
+  };
+
   fill(255);
   noStroke();
   textSize(15);
@@ -207,6 +241,29 @@ function draw() {
   text("Connection :" + connectionStatus, 20, 20);
   text("Coordinate (x, y):"+ corX + ", " + corY, 350, 20);  // offset from edge 30px
   text("Heading :" + angle, 700, 20);
+
+  dataMap.wall.push([111,222]);
+
+  var x1 = dataMap.wall[0][0];
+  var y1 = dataMap.wall[0][1];
+
+  var x2 = dataMap.wall[1][0];
+  var y2 = dataMap.wall[1][1];
+
+  var x3 = dataMap.wall[2][0];
+  var y3 = dataMap.wall[2][1];
+
+  
+
+  text("point 1 x" + x1, 700, 40);
+  text("point 1 y" + y1, 700, 60);
+  text("point 2 x" + x2, 700, 80);
+  text("point 2 y" + y2, 700, 100);
+  text("point 3 x" + x3, 700, 120);
+  text("point 3 y" + y3, 700, 140);
+  text("datamap.wall = " + dataMap.wall.length, 700, 160);
+
+  // console.log(dataMap);
 
   if (wall.length > 1){
     stroke(255);

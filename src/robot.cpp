@@ -79,6 +79,8 @@ uint16_t count;
 bool hall_detect;
 int set_heading_running = 0;
 int set_forward_running = 0;
+int angle_offset = 0;
+int calibrated_angle;
 
 Quaternion q;           // [w, x, y, z]         quaternion container
 VectorFloat gravity;    // [x, y, z]            gravity vector
@@ -115,6 +117,17 @@ void sendHeading(){
   ws.textAll(String("heading-value"));
 }
 
+int normalizeAngle(int a){
+  if (a >= 360){
+    a = a - 360;
+  } else if(a < 0){
+    a = 360 + a;
+  } else{
+    a = a;
+  }
+  return a;
+}
+
 int getAngle(){
     // int mapa;
     mpu.dmpGetCurrentFIFOPacket(fifoBuffer);
@@ -130,18 +143,28 @@ int getAngle(){
     // }
     // return mapa;
     // return raw;
-    return (-ypr[0] * 57.2958)+180;
+    calibrated_angle = (-ypr[0] * 57.2958) + 180;
+    calibrated_angle = calibrated_angle + angle_offset;
+    calibrated_angle = normalizeAngle(calibrated_angle); 
+    return calibrated_angle;
+}
+
+int getAngleRaw(){
+  mpu.dmpGetCurrentFIFOPacket(fifoBuffer);
+  mpu.dmpGetQuaternion(&q, fifoBuffer);
+  mpu.dmpGetGravity(&gravity, &q);
+  mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+
+  return ((-ypr[0] * 57.2958) + 180);
+}
+
+void calibrateMpu(int webui_angle){
+  angle_offset = webui_angle - getAngleRaw();
 }
 
 int calculateToTargetHeading(int target_increment){
   int mpu_target = getAngle() + target_increment;
-  if (mpu_target >= 360){
-    mpu_target = mpu_target - 360;
-  } else if(mpu_target < 0){
-    mpu_target = 360 + mpu_target;
-  } else{
-    mpu_target = mpu_target;
-  }
+  normalizeAngle(mpu_target);
   return mpu_target;
 }
 
@@ -230,6 +253,8 @@ void forward(int target){
 }
 
 
+
+
 // MPU REALTIME DEBUG
 void task_display(void *pvParameters){
   (void) pvParameters;
@@ -293,6 +318,12 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
       Serial.println("DEBUG : Reading Sensor..........");
       scanTask = 1;
       Serial.println("DEBUG : Read Sensor Complete..........");
+    }
+
+    else if (command == "calibratempu"){
+      Serial.println("CALIBRATE MPU");
+      int val_angle = value.toInt();
+      calibrateMpu(val_angle);
     }
     
     else {

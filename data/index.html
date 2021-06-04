@@ -39,26 +39,22 @@
               forward
               <input type="text" id="input_set_forward" placeholder="0-1000mm">
               <button id="button_set_forward">set forward</button>
-              <hr>
 
+            </div>
+            <div class="col-md-6">
               read sensor
               <button id="button_read_sensor">read sensor</button>
               <hr>
-            </div>
-            <div class="col-md-6">
-              current heading
-              <input type="text" id="input_get_heading" placeholder="0-360">
+              calibrate mpu
+              <button id="button_calibrate_mpu">calibrate mpu</button>
               <hr>
-
-              current coordinate
-              <input type="text" id="input_get_x" placeholder="0-360">
-              <input type="text" id="input_get_y" placeholder="0-360">
-              <hr>
-
-              sensor data
             </div>
-            <div class="col-md-3">
-              <textarea id="state" rows="4" cols="50">Json scan wall</textarea>
+          </div>
+          <div class="row">
+            <div class="col-md-12">
+              <hr>
+              CLI
+              <textarea id="state" rows="7" cols="50"></textarea>
             </div>
           </div>
         </div>
