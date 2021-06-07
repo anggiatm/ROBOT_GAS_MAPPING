@@ -1,80 +1,8 @@
-// // where the serial server is (your local machine):
-// var ledOn = false;
-// var host = '192.168.43.27';
-// var socket; // the websocket
-// var sensorValue = 0; // the sensor value
-
-// window.addEventListener('load', onLoad);
-
-// function onLoad(event) {
-//   initWebSocket();
-//   initButton();
-//   //setup();
-// }
-
-// function initWebSocket(){
-//   socket = new WebSocket('ws://' + host + '/ws');
-//   socket.onopen    = onOpen;
-//   socket.onclose   = onClose;
-//   socket.onmessage = onMessage;
-// }
-
-// function onOpen(event) {
-//   console.log('Connection opened');
-// }
-
-// function onClose(event) {
-//   console.log('Connection closed');
-//   setTimeout(initWebSocket, 2000);
-// }
-
-// function onMessage(event) {
-//   //var state;
-//   var msg = event.data; // read data from the onmessage event
-
-//   // if(msg == "")
-
-//   //   if (event.data == "1"){
-//   //     state = "ON";
-//   //   }
-//   //   else{
-//   //     state = "OFF";
-//   //   }
-
-//   document.getElementById('state').innerHTML = msg;
-//   console.log(msg);
-  
-//   //sensorValue = Number(msg) / 4;
-//   //println(sensorValue); // print it
-// }
-
-// function toggleLed(){
-//   socket.send('toggleLed');
-// }
-
-// function getHeading(){
-//   socket.send('getHeading');
-// }
-
-// function setHeading(){
-//   socket.send('setHeading');
-// }
-
-// function initButton() {
-//   document.getElementById('ledToggle').addEventListener('click', toggleLed);
-//   document.getElementById('getHeading').addEventListener('click', getHeading);
-//   document.getElementById('setHeading').addEventListener('click', setHeading);
-// }
-
 
 var gateway = "ws://192.168.43.27/ws";
 // var gateway = "ws://192.168.1.11/ws";
 
 var websocket;
-
-// var corX = 0;
-// var corY = 0;
-// var angle = 0;
 var wall = [];
 var scale = 0.3;
 var connectionStatus = "...";
@@ -94,7 +22,6 @@ var dataMap = {
 window.addEventListener("load", onLoad);
 
 function initWebSocket() {
-  // custom console
   console.log("Trying to open a WebSocket connection...");
   websocket = new WebSocket(gateway);
   websocket.onopen    = onOpen;
@@ -108,7 +35,6 @@ function initButton() {
   document.getElementById('button_set_forward').addEventListener('click', setForward);
   document.getElementById('button_read_sensor').addEventListener('click', readSensor);
   document.getElementById('button_calibrate_mpu').addEventListener('click', calibrateMpu);
-  //document.getElementById('button').addEventListener('click', toggle);
 }
 
 function setHeading(){
@@ -165,6 +91,7 @@ function onMessage(event) {
       wall[intIndex] = value;
     }
   }
+
   angleMode(RADIANS);
   for (var i=0; i<wall.length; i++){
     var a = i - 180;
@@ -184,15 +111,12 @@ function onMessage(event) {
 
   document.getElementById('state').innerHTML = wall;
   wall = [];
-
 }
 
 function onLoad(event) {
   initWebSocket();
   initButton();
 }
-
-
 
 function normalizeAngle(a){
   if (a < 0){

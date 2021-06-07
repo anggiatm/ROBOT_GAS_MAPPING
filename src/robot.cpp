@@ -38,7 +38,7 @@
  * | MOTOR_R->taskRunner | "FlexyStepper"    |     1024          |   NULL*   |    1     | MOTOR_R->xHandle            |   -1    | ESP_FlexyStepper.cpp  |
  * | MOTOR_L->taskRunner | "FlexyStepper"    |     1024          |   NULL*   |    1     | MOTOR_L->xHandle            |   -1    | ESP_FlexyStepper.cpp  |
  * | task_web_client     | "WEB_CLIENT_TASK" |     1024          |   NULL    |    1     | &Client_Task_Handle);       |   -1    | main.cpp              |
- * | task_display        | "MPU_RUN_TASK"    |     1024*2        |   NULL    |    1     | &MPU_TaskRun_Handle         |   -1    | main.cpp              | DEBUG MPU
+ * | task_read_sensor    | "MPU_RUN_TASK"    |     1024*2        |   NULL    |    1     | &ReadSensor_Task_Handle     |   -1    | main.cpp              | DEBUG MPU
  * |_____________________|___________________|___________________|___________|__________|_____________________________|_________|_______________________|
  *                                                      
 */
@@ -52,8 +52,9 @@ ESP_FlexyStepper MOTOR_R;
 ESP_FlexyStepper MOTOR_L;
 
 //TaskHandle_t MPU_TaskInit_Handle;
-TaskHandle_t MPU_TaskRun_Handle;
+TaskHandle_t ReadSensor_Task_Handle;
 TaskHandle_t Client_Task_Handle;
+TaskHandle_t Motor_Task_Handle;
 
 VL53L0X sensor;
 Servo motor;
@@ -81,6 +82,8 @@ int set_heading_running = 0;
 int set_forward_running = 0;
 int angle_offset = 0;
 int calibrated_angle;
+
+int val_head;
 
 Quaternion q;           // [w, x, y, z]         quaternion container
 VectorFloat gravity;    // [x, y, z]            gravity vector
@@ -184,15 +187,28 @@ int calculateAngleRemaining(int mpu_target){
   return angle_reamining;
 }
 
-void setHeading(int target){
-  set_heading_running = 1;
+void setZeroStepPosition(){
+  MOTOR_R.setCurrentPositionInSteps(0);
+  MOTOR_L.setCurrentPositionInSteps(0);
+}
+
+void resumeMotorTask(){
   digitalWrite(STEPPER_ENABLE_PIN, LOW);
   MOTOR_R.resumeService();
   MOTOR_L.resumeService();
-  // long target_step = target*STEP_PER_MM*MM_PER_DEGREE;
+  setZeroStepPosition();
+}
 
-  MOTOR_R.setCurrentPositionInSteps(0);
-  MOTOR_L.setCurrentPositionInSteps(0);
+void suspendMotorTask(){
+  setZeroStepPosition();
+  MOTOR_R.suspendService();
+  MOTOR_L.suspendService();
+  digitalWrite(STEPPER_ENABLE_PIN, HIGH);
+}
+
+void setHeading(int target){
+  // set_heading_running = 1;
+  resumeMotorTask();
 
   int mpu_target = calculateToTargetHeading(target);
 
@@ -205,21 +221,12 @@ void setHeading(int target){
     Serial.println(MOTOR_L.getCurrentPositionInSteps());
     
   }
-  
-  MOTOR_R.setCurrentPositionInSteps(0);
-  MOTOR_L.setCurrentPositionInSteps(0);
-  MOTOR_R.suspendService();
-  MOTOR_L.suspendService();
-  digitalWrite(STEPPER_ENABLE_PIN, HIGH);
-  set_heading_running = 0;
+  suspendMotorTask();
+  // set_heading_running = 0;
 }
 
 void forward(int target){
-  digitalWrite(STEPPER_ENABLE_PIN, LOW);
-  MOTOR_R.resumeService();
-  MOTOR_L.resumeService();
-  MOTOR_R.setCurrentPositionInSteps(0);
-  MOTOR_L.setCurrentPositionInSteps(0);
+  resumeMotorTask();
 
   int angle_stamp = getAngle();
   int angle_glide = calculateAngleRemaining(angle_stamp);
@@ -244,19 +251,22 @@ void forward(int target){
       angle_glide = calculateAngleRemaining(angle_stamp);
     }
   }
-
-  MOTOR_R.setCurrentPositionInSteps(0);
-  MOTOR_L.setCurrentPositionInSteps(0);
-  MOTOR_R.suspendService();
-  MOTOR_L.suspendService();
-  digitalWrite(STEPPER_ENABLE_PIN, HIGH);
+  suspendMotorTask();
 }
 
+void task_motor(void *param){
+  (void) param;
+  while (1){
+    vTaskDelay(10);
+    if (set_heading_running > 0){
+      Serial.println("taskmorot");
+      setHeading(val_head);
+      set_heading_running = 0;
+    }
+  }
+}
 
-
-
-// MPU REALTIME DEBUG
-void task_display(void *pvParameters){
+void task_read_sensor(void *pvParameters){
   (void) pvParameters;
   vTaskDelay(200);
 
@@ -292,7 +302,6 @@ void task_display(void *pvParameters){
   vTaskDelete(NULL);
 }
 
-
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
@@ -302,8 +311,9 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
 
     if (command == "setheading"){
       Serial.println("SET HEADING");
-      int val_head = value.toInt();
-      setHeading(val_head);
+      val_head = value.toInt();
+      set_heading_running = 1;
+      // setHeading(val_head);
     }
     
     else if (command == "setforward"){
@@ -509,9 +519,10 @@ void setup(){
   MOTOR_R.startAsService(-1);
   MOTOR_L.startAsService(-1);      
 
-  xTaskCreateUniversal(task_display, "MPU_RUN_TASK", 1024*2, NULL, 1, &MPU_TaskRun_Handle, -1);
+  xTaskCreateUniversal(task_read_sensor, "READ_SENSOR_TASK", 1024*2, NULL, 1, &ReadSensor_Task_Handle, -1);
   server.begin();
   xTaskCreateUniversal(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle, -1);
+  xTaskCreateUniversal(task_motor, "TASK_MOTOR", 1024*2, NULL,1, &Motor_Task_Handle, -1);
   //digitalWrite(ledPin, HIGH);
   delay(3000);
   dmpReady = true;
