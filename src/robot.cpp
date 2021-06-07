@@ -228,7 +228,7 @@ void forward(int target){
   int current_position_r = MOTOR_R.getCurrentPositionInSteps();
   int current_position_l = MOTOR_L.getCurrentPositionInSteps();
 
-  while(current_position_r < target_step_r){
+  while(current_position_r != target_step_r){
     MOTOR_R.setTargetPositionRelativeInSteps(target_step_r - current_position_r);
     MOTOR_L.setTargetPositionRelativeInSteps(target_step_l - current_position_l);
     current_position_r = MOTOR_R.getCurrentPositionInSteps();

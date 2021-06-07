@@ -72,15 +72,24 @@ var gateway = "ws://192.168.43.27/ws";
 
 var websocket;
 
-var corX = 0;
-var corY = 0;
-var angle = 0;
+// var corX = 0;
+// var corY = 0;
+// var angle = 0;
 var wall = [];
-var scale = 0.5;
+var scale = 0.3;
 var connectionStatus = "...";
 
-var wallObject = {};
-var dotCount = 0;
+var dataMap = {
+  robotCor  : [[0,0,0]],
+  wall      : [],
+  gas       : {
+                voc   : [],
+                co2   : [],
+                asap  : [],
+                temp  : [],
+                hum   : []
+              }
+};
 
 window.addEventListener("load", onLoad);
 
@@ -91,20 +100,57 @@ function initWebSocket() {
   websocket.onopen    = onOpen;
   websocket.onclose   = onClose;
   websocket.onmessage = onMessage; // <-- add this line
+
+}
+
+function initButton() {
+  document.getElementById('button_set_heading').addEventListener('click', setHeading);
+  document.getElementById('button_set_forward').addEventListener('click', setForward);
+  document.getElementById('button_read_sensor').addEventListener('click', readSensor);
+  document.getElementById('button_calibrate_mpu').addEventListener('click', calibrateMpu);
+  //document.getElementById('button').addEventListener('click', toggle);
+}
+
+function setHeading(){
+  var value = document.getElementById("input_set_heading").value;
+  websocket.send('setheading='+value);
+
+  var lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
+  var lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
+  var lastRobotCorH = dataMap.robotCor[dataMap.robotCor.length-1][2];
+
+  lastRobotCorH = lastRobotCorH + parseInt(value, 10);
+  lastRobotCorH = normalizeAngle(lastRobotCorH);
+  dataMap.robotCor.push([lastRobotCorX, lastRobotCorY, lastRobotCorH]);
+}
+
+function setForward(){
+  var value = document.getElementById("input_set_forward").value;
+  websocket.send('setforward='+value);
+
+  var lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
+  var lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
+  var lastRobotCorH = dataMap.robotCor[dataMap.robotCor.length-1][2];
+  
+  angleMode(RADIANS);
+  lastRobotCorX = lastRobotCorX + parseInt((sin(lastRobotCorH * 0.0174533) * parseInt(value)),10);
+  lastRobotCorY = lastRobotCorY + parseInt((cos(lastRobotCorH * 0.0174533) * parseInt(value)),10);
+  dataMap.robotCor.push([lastRobotCorX, lastRobotCorY, lastRobotCorH]);
 }
 
 function onOpen(event) {
-  // eslint-disable-next-line no-console
-  // console.log("Connection opened");
   connectionStatus = "Connection opened";
 }
 function onClose(event) {
-  console.log("Connection closed");
   connectionStatus = "Connection closed";
   setTimeout(initWebSocket, 5000);
 }
 
 function onMessage(event) {
+  var lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
+  var lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
+  lastRobotCorX = (0.3*lastRobotCorX) + 70;
+  lastRobotCorY = -(0.3*lastRobotCorY) + 500;
   console.log(event.data);
   var data = JSON.parse(event.data);
   var keys = Object.keys(data);
@@ -119,54 +165,34 @@ function onMessage(event) {
       wall[intIndex] = value;
     }
   }
-
+  angleMode(RADIANS);
   for (var i=0; i<wall.length; i++){
-    var a = (i * 0.0174533);
+    var a = i - 180;
+    a = -a + 180;
+    a = (a * 0.0174533);
     var num = parseInt(wall[i], 10);
     if (num){
-      var x = ((sin(a) * num * 0.3) + robotCorX);
-      var y = ((cos(a) * num * 0.3) + robotCorY);
-      
-      wallObject[dotCount.toString()] = x + "," + y;
-      console.log(wallObject);
-      dotCount += 1;
+      var x = ((sin(a) * num * 0.3) + lastRobotCorX);
+      var y = ((cos(a) * num * 0.3) + lastRobotCorY);
+
+      dataMap.wall.push([x, y]);
     }
     else {
       console.log("DEBUG : Array kosong/error di index #"+i);
     }
   }
 
-  console.log(wallObject);
-
   document.getElementById('state').innerHTML = wall;
-  //document.getElementById('state').innerHTML = event.data;
+  wall = [];
+
 }
 
 function onLoad(event) {
-  
-  // var keys = Object.keys(wallObject);
-  // for (var j=0; j<360; j++){
-  //   if(keys[j] != "voc" && keys[j] != "co2" && keys[j] != "asap" && keys[j] != "temp" && keys[j] != "hum"){
-  //     var name = keys[j];
-  //     var strIndex = String(name);
-  //     var splitIndex = strIndex.split("a");
-  //     var intIndex = parseInt(splitIndex[1], 10);
-      
-  //     var value = data[name];
-  //     wall[intIndex] = value;
-  //   }
-  // }
   initWebSocket();
   initButton();
 }
 
-function initButton() {
-  document.getElementById('button_set_heading').addEventListener('click', setHeading);
-  document.getElementById('button_set_forward').addEventListener('click', setForward);
-  document.getElementById('button_read_sensor').addEventListener('click', readSensor);
-  document.getElementById('button_calibrate_mpu').addEventListener('click', calibrateMpu);
-  //document.getElementById('button').addEventListener('click', toggle);
-}
+
 
 function normalizeAngle(a){
   if (a < 0){
@@ -179,119 +205,56 @@ function normalizeAngle(a){
 }
 
 function calibrateMpu(){
-  var angle_correction = angle + 180;
+  var lastRobotCorH = dataMap.robotCor[dataMap.robotCor.length-1][2];
+  var angle_correction = lastRobotCorH + 180;
   angle_correction = normalizeAngle(angle_correction);
   websocket.send("calibratempu=" + angle_correction);
-}
-
-function setHeading(){
-  var headingValue = document.getElementById("input_set_heading").value;
-  websocket.send('setheading='+headingValue);
-  angle = angle + parseInt(headingValue, 10);
-  angle = normalizeAngle(angle)
-  console.log(typeof(angle));
-}
-
-function setForward(){
-  var forwardValue = document.getElementById("input_set_forward").value;
-  websocket.send('setforward='+forwardValue);
-  angleMode(RADIANS);
-  corX = corX + parseInt((sin(angle * 0.0174533) * parseInt(forwardValue)),10);
-  corY = corY + parseInt((cos(angle * 0.0174533) * parseInt(forwardValue)),10);
 }
 
 function readSensor(){
   websocket.send('readsensor');
 }
 
-function drawScanValue(){
-  
-}
-
 function setup() {
   let canvas = createCanvas(850, 560);
   canvas.position(20, 80);
+  // dataMap.wall.push([100, 100]);
 }
 
 function draw() {
   background("#42413F");
-  var robotCorX = (0.3*corX) + 70;
-  var robotCorY = -(0.3*corY) + 500;
-  
-  var dataMap = {
-    wall : [
-      [
-        100,150
-      ],
-      [
-        200,200
-      ]
-    ],
-    gas : [
-      [
-        400,400
-      ]
-    ]
-  };
 
+  var lastRobotCor = dataMap.robotCor.length-1;
+  var lastRobotCorX = dataMap.robotCor[lastRobotCor][0];
+  var lastRobotCorY = dataMap.robotCor[lastRobotCor][1];
+  var lastRobotCorH = dataMap.robotCor[lastRobotCor][2];
+
+  //value scale to map
+  var robotCorX = (lastRobotCorX*0.3) + 70;
+  var robotCorY = -(lastRobotCorY*0.3) + 500;
+  
   fill(255);
   noStroke();
   textSize(15);
   textStyle(NORMAL);
   text("Connection :" + connectionStatus, 20, 20);
-  text("Coordinate (x, y):"+ corX + ", " + corY, 350, 20);  // offset from edge 30px
-  text("Heading :" + angle, 700, 20);
+  text("Coordinate (x, y):"+ lastRobotCorX + ", " + lastRobotCorY, 350, 20);  // offset from edge 30px
+  text("Heading :" + lastRobotCorH, 700, 20);
 
-  dataMap.wall.push([111,222]);
-
-  var x1 = dataMap.wall[0][0];
-  var y1 = dataMap.wall[0][1];
-
-  var x2 = dataMap.wall[1][0];
-  var y2 = dataMap.wall[1][1];
-
-  var x3 = dataMap.wall[2][0];
-  var y3 = dataMap.wall[2][1];
-
-  
-
-  text("point 1 x" + x1, 700, 40);
-  text("point 1 y" + y1, 700, 60);
-  text("point 2 x" + x2, 700, 80);
-  text("point 2 y" + y2, 700, 100);
-  text("point 3 x" + x3, 700, 120);
-  text("point 3 y" + y3, 700, 140);
-  text("datamap.wall = " + dataMap.wall.length, 700, 160);
-
-  // console.log(dataMap);
-
-  if (wall.length > 1){
-    stroke(255);
-    strokeWeight(2);
-    angleMode(RADIANS);
-    for (var i=0; i<wall.length; i++){
-      var a = i - 180;
-      a = -a + 180;
-      a = (a * 0.0174533);
-      var num = parseInt(wall[i], 10);
-      if (num){
-        var x = ((sin(a) * num * 0.3) + robotCorX);
-        var y = ((cos(a) * num * 0.3) + robotCorY);
-      }
-      else {
-        console.log("DEBUG : Array kosong/error di index #"+i);
-      }
-      point (x , y);
-    }
-    wall = [];
+  // DRAW WALL
+  stroke(255);
+  strokeWeight(2);
+  for(var i = 0; i < dataMap.wall.length; i++){
+    point(dataMap.wall[i][0], dataMap.wall[i][1]);
   }
 
+  // ROBOT MODEL
   stroke(0);
   angleMode(DEGREES);
   strokeWeight(1);
   circle(robotCorX, robotCorY, 20);
   translate(robotCorX, robotCorY);
-  rotate(angle);
+  rotate(lastRobotCorH);
   rect(-1, 4, 2, -30);
 }
 
