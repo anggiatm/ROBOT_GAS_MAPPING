@@ -79,25 +79,13 @@ function onMessage(event) {
   lastRobotCorY = -(0.3*lastRobotCorY) + 500;
   console.log(event.data);
   var data = JSON.parse(event.data);
-  var keys = Object.keys(data);
-  for (var j=0; j<360; j++){
-    if(keys[j] != "voc" && keys[j] != "co2" && keys[j] != "asap" && keys[j] != "temp" && keys[j] != "hum"){
-      var name = keys[j];
-      var strIndex = String(name);
-      var splitIndex = strIndex.split("a");
-      var intIndex = parseInt(splitIndex[1], 10);
-      
-      var value = data[name];
-      wall[intIndex] = value;
-    }
-  }
 
   angleMode(RADIANS);
-  for (var i=0; i<wall.length; i++){
+  for (var i=0; i<data.wall.length; i++){
     var a = i - 180;
     a = -a + 180;
     a = (a * 0.0174533);
-    var num = parseInt(wall[i], 10);
+    var num = parseInt(data.wall[i], 10);
     if (num){
       var x = ((sin(a) * num * 0.3) + lastRobotCorX);
       var y = ((cos(a) * num * 0.3) + lastRobotCorY);
@@ -112,6 +100,49 @@ function onMessage(event) {
   document.getElementById('state').innerHTML = wall;
   wall = [];
 }
+
+  
+
+// function onMessage(event) {
+//   var lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
+//   var lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
+//   lastRobotCorX = (0.3*lastRobotCorX) + 70;
+//   lastRobotCorY = -(0.3*lastRobotCorY) + 500;
+//   console.log(event.data);
+//   var data = JSON.parse(event.data);
+//   var keys = Object.keys(data);
+//   for (var j=0; j<360; j++){
+//     if(keys[j] != "voc" && keys[j] != "co2" && keys[j] != "asap" && keys[j] != "temp" && keys[j] != "hum"){
+//       var name = keys[j];
+//       var strIndex = String(name);
+//       var splitIndex = strIndex.split("a");
+//       var intIndex = parseInt(splitIndex[1], 10);
+      
+//       var value = data[name];
+//       wall[intIndex] = value;
+//     }
+//   }
+
+//   angleMode(RADIANS);
+//   for (var i=0; i<wall.length; i++){
+//     var a = i - 180;
+//     a = -a + 180;
+//     a = (a * 0.0174533);
+//     var num = parseInt(wall[i], 10);
+//     if (num){
+//       var x = ((sin(a) * num * 0.3) + lastRobotCorX);
+//       var y = ((cos(a) * num * 0.3) + lastRobotCorY);
+
+//       dataMap.wall.push([x, y]);
+//     }
+//     else {
+//       console.log("DEBUG : Array kosong/error di index #"+i);
+//     }
+//   }
+
+//   document.getElementById('state').innerHTML = wall;
+//   wall = [];
+// }
 
 function onLoad(event) {
   initWebSocket();

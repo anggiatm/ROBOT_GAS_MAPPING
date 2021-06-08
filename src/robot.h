@@ -45,7 +45,16 @@
 #define SERVO_RUN_ALIGNMENT 96
 
 #define HALL_SENSOR 19  // INVERTED !!! || ON = 0 || OFF = 1
-#define LED 2
+// #define LED 2
+
+#define SENSOR_BATTERY 39
+#define SENSOR_DHT11 35
+
+#define LED_R 15
+#define LED_G 2
+#define LED_B 4
+
+#define FAN_RELAY 18
 
 class robot {
     public:

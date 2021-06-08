@@ -45,9 +45,6 @@
 
 #include <robot.h>
 
-
-
-
 ESP_FlexyStepper MOTOR_R;
 ESP_FlexyStepper MOTOR_L;
 
@@ -56,15 +53,21 @@ TaskHandle_t ReadSensor_Task_Handle;
 TaskHandle_t Client_Task_Handle;
 TaskHandle_t Motor_Task_Handle;
 
-VL53L0X sensor;
-Servo motor;
-MPU6050 mpu;
+Servo MOTOR_SERVO;
+VL53L0X SENSOR_RANGE;
+MPU6050 SENSOR_MPU;
 SGP30 SENSOR_VOC;
 
-// StaticJsonDocument<9216> doc;
 DynamicJsonDocument doc(9216); // fixed size 9216
 JsonObject root = doc.to<JsonObject>();
 char buffer[9216]; // create temp buffer
+
+// JsonObject wall = doc.createNestedObject("wall");
+// JsonObject gas = doc.createNestedObject("gas");
+
+JsonArray wall = doc.createNestedArray("wall");
+JsonObject gas = doc.createNestedObject("gas");
+
 
 bool dmpReady = false;
 uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
@@ -75,15 +78,17 @@ uint8_t fifoBuffer[64]; // FIFO storage buffer
 
 int angle;
 int angle_old = 0;
-int scanTask;
+
 uint16_t count;
 bool hall_detect;
 int set_heading_running = 0;
 int set_forward_running = 0;
+int scanTask;
 int angle_offset = 0;
 int calibrated_angle;
 
 int val_head;
+int val_forward;
 
 Quaternion q;           // [w, x, y, z]         quaternion container
 VectorFloat gravity;    // [x, y, z]            gravity vector
@@ -133,10 +138,10 @@ int normalizeAngle(int a){
 
 int getAngle(){
     // int mapa;
-    mpu.dmpGetCurrentFIFOPacket(fifoBuffer);
-    mpu.dmpGetQuaternion(&q, fifoBuffer);
-    mpu.dmpGetGravity(&gravity, &q);
-    mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+    SENSOR_MPU.dmpGetCurrentFIFOPacket(fifoBuffer);
+    SENSOR_MPU.dmpGetQuaternion(&q, fifoBuffer);
+    SENSOR_MPU.dmpGetGravity(&gravity, &q);
+    SENSOR_MPU.dmpGetYawPitchRoll(ypr, &q, &gravity);
     // int raw = (ypr[0] * 57.2958)+180;
     // if (raw<=180){
     //     mapa = map(raw, 180, 0, 0, 180);
@@ -153,10 +158,10 @@ int getAngle(){
 }
 
 int getAngleRaw(){
-  mpu.dmpGetCurrentFIFOPacket(fifoBuffer);
-  mpu.dmpGetQuaternion(&q, fifoBuffer);
-  mpu.dmpGetGravity(&gravity, &q);
-  mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+  SENSOR_MPU.dmpGetCurrentFIFOPacket(fifoBuffer);
+  SENSOR_MPU.dmpGetQuaternion(&q, fifoBuffer);
+  SENSOR_MPU.dmpGetGravity(&gravity, &q);
+  SENSOR_MPU.dmpGetYawPitchRoll(ypr, &q, &gravity);
 
   return ((-ypr[0] * 57.2958) + 180);
 }
@@ -207,9 +212,7 @@ void suspendMotorTask(){
 }
 
 void setHeading(int target){
-  // set_heading_running = 1;
   resumeMotorTask();
-
   int mpu_target = calculateToTargetHeading(target);
 
   while (target > 1 || target < -1){                           //DEADBAND -1 to 1 degree
@@ -217,12 +220,11 @@ void setHeading(int target){
     long target_step = target*STEP_PER_MM*MM_PER_DEGREE;
     MOTOR_R.setTargetPositionRelativeInSteps(-target_step);
     MOTOR_L.setTargetPositionRelativeInSteps(target_step);
-    Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
-    Serial.println(MOTOR_L.getCurrentPositionInSteps());
+    // Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
+    // Serial.println(MOTOR_L.getCurrentPositionInSteps());
     
   }
   suspendMotorTask();
-  // set_heading_running = 0;
 }
 
 void forward(int target){
@@ -240,8 +242,8 @@ void forward(int target){
     MOTOR_L.setTargetPositionRelativeInSteps(target_step_l - current_position_l);
     current_position_r = MOTOR_R.getCurrentPositionInSteps();
     current_position_l = MOTOR_L.getCurrentPositionInSteps();
-
     angle_glide = calculateAngleRemaining(angle_stamp);
+
     while (angle_glide > 1 || angle_glide < -1){                           //DEADBAND -1 to 1 degree
       MOTOR_R.setTargetPositionRelativeInSteps(-calculateAngleRemaining(angle_stamp));
       MOTOR_L.setTargetPositionRelativeInSteps(calculateAngleRemaining(angle_stamp));
@@ -256,12 +258,16 @@ void forward(int target){
 
 void task_motor(void *param){
   (void) param;
+  vTaskDelay(200);
   while (1){
-    vTaskDelay(10);
+    vTaskDelay(100);
     if (set_heading_running > 0){
-      Serial.println("taskmorot");
       setHeading(val_head);
       set_heading_running = 0;
+    }
+    if (set_forward_running > 0){
+      forward(val_forward);
+      set_forward_running = 0 ;
     }
   }
 }
@@ -269,7 +275,6 @@ void task_motor(void *param){
 void task_read_sensor(void *pvParameters){
   (void) pvParameters;
   vTaskDelay(200);
-
   while (1){
     vTaskDelay(1);
     count = 0;
@@ -277,7 +282,7 @@ void task_read_sensor(void *pvParameters){
     int old_hall = 0;
     
     if (scanTask > 0){
-      motor.write(SERVO_RUN_CW);
+      MOTOR_SERVO.write(SERVO_RUN_CW);
       while (count <= 1){
         hall = digitalRead(HALL_SENSOR);
         if (hall != old_hall){
@@ -287,15 +292,24 @@ void task_read_sensor(void *pvParameters){
         
         angle = getAngle();
         if (angle != angle_old){
-          root["a"+String(angle)] = sensor.readRangeSingleMillimeters();
+          // root["a"+String(angle)] = SENSOR_RANGE.readRangeSingleMillimeters();
+          // wall["a"+String(angle)] = SENSOR_RANGE.readRangeSingleMillimeters();
+
+          wall[angle] = SENSOR_RANGE.readRangeSingleMillimeters();
+
           angle_old = angle;
           Serial.println(angle);
         }
       }
+
       
-      motor.write(SERVO_NEUTRAL);
+      gas["voc"] = "100";
+      gas["co2"] = "200";
+      
+      MOTOR_SERVO.write(SERVO_NEUTRAL);
       size_t len = serializeJson(root, buffer);  // serialize to buffer
       ws.textAll(buffer, len);
+      
       scanTask = 0;
     }
   }
@@ -318,16 +332,15 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     
     else if (command == "setforward"){
       Serial.println("SET FORWARD");
-      int val_forward = value.toInt();
-      forward(val_forward);
-      //clearPosition();
-      //sendHeading();
+      val_forward = value.toInt();
+      set_forward_running = 1;
+      // forward(val_forward);
     }
 
     else if (command == "readsensor"){
-      Serial.println("DEBUG : Reading Sensor..........");
+      // Serial.println("DEBUG : Reading Sensor..........");
       scanTask = 1;
-      Serial.println("DEBUG : Read Sensor Complete..........");
+      // Serial.println("DEBUG : Read Sensor Complete..........");
     }
 
     else if (command == "calibratempu"){
@@ -363,23 +376,6 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
   }
 }
 
-void initWebSocket() {
-  ws.onEvent(onEvent);
-  server.addHandler(&ws);
-}
-
-String processor(const String& var){
-  Serial.println(var);
-  if(var == "STATE"){
-    if (1){
-      return "ON";
-    }
-    else{
-      return "OFF";
-    }
-  }
-}
-
 void task_web_client(void*){
 	while(1){
     ws.cleanupClients();
@@ -394,12 +390,12 @@ void dmpDataReady() {
 void sensorAlignment(){
   hall_detect = digitalRead(HALL_SENSOR);
   if (hall_detect){
-    motor.write(SERVO_RUN_ALIGNMENT);
+    MOTOR_SERVO.write(SERVO_RUN_ALIGNMENT);
   }
   while(hall_detect){
     hall_detect = digitalRead(HALL_SENSOR);
   }
-  motor.write(SERVO_NEUTRAL);
+  MOTOR_SERVO.write(SERVO_NEUTRAL);
 }
 
 void setup(){
@@ -412,8 +408,8 @@ void setup(){
   #endif
 
   Serial.begin(115200);
-  motor.attach(23);
-  motor.write(SERVO_NEUTRAL); 
+  MOTOR_SERVO.attach(23);
+  MOTOR_SERVO.write(SERVO_NEUTRAL); 
   if(!SPIFFS.begin(true)){
     Serial.println("An Error has occurred while mounting SPIFFS");
     return;
@@ -427,53 +423,58 @@ void setup(){
   //measureAirQuality should be called in one second increments after a call to initAirQuality
   SENSOR_VOC.initAirQuality();
 
-
-
   pinMode(HALL_SENSOR, INPUT);
-  pinMode(LED, OUTPUT);
+  
   pinMode(STEPPER_ENABLE_PIN, OUTPUT);
+
+  pinMode(LED_R, OUTPUT);
+  pinMode(LED_G, OUTPUT);
+  pinMode(LED_B, OUTPUT);
+
+  pinMode(FAN_RELAY,OUTPUT);
+
   digitalWrite(STEPPER_ENABLE_PIN, HIGH);
   sensorAlignment();
 
-  sensor.setTimeout(500);
-  if (!sensor.init()){
+  SENSOR_RANGE.setTimeout(500);
+  if (!SENSOR_RANGE.init()){
       Serial.println("Failed to detect and initialize sensor!");
       while (1) {}
   }
     
   // reduce timing budget to 20 ms (default is about 33 ms)
-  sensor.setMeasurementTimingBudget(20000);
+  SENSOR_RANGE.setMeasurementTimingBudget(20000);
 
   // initialize device
   Serial.println(F("Initializing I2C devices..."));
-  mpu.initialize();
+  SENSOR_MPU.initialize();
   pinMode(INTERRUPT_PIN, INPUT);
 
   Serial.println(F("Testing device connections..."));
-  Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
+  Serial.println(SENSOR_MPU.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
 
   Serial.println(F("Initializing DMP..."));
-  devStatus = mpu.dmpInitialize();
+  devStatus = SENSOR_MPU.dmpInitialize();
 
-  mpu.setXGyroOffset(220);
-  mpu.setYGyroOffset(76);
-  mpu.setZGyroOffset(0);   // -85 default
-  mpu.setZAccelOffset(1888); // 1688 factory default for my test chip
+  SENSOR_MPU.setXGyroOffset(220);
+  SENSOR_MPU.setYGyroOffset(76);
+  SENSOR_MPU.setZGyroOffset(0);   // -85 default
+  SENSOR_MPU.setZAccelOffset(1888); // 1688 factory default for my test chip
 
   if (devStatus == 0) {
-    mpu.CalibrateAccel(6);
-    mpu.CalibrateGyro(6);
-    mpu.PrintActiveOffsets();
+    SENSOR_MPU.CalibrateAccel(6);
+    SENSOR_MPU.CalibrateGyro(6);
+    SENSOR_MPU.PrintActiveOffsets();
     Serial.println(F("Enabling DMP..."));
-    mpu.setDMPEnabled(true);
+    SENSOR_MPU.setDMPEnabled(true);
     Serial.print(F("Enabling interrupt detection (Arduino external interrupt "));
     Serial.print(digitalPinToInterrupt(INTERRUPT_PIN));
     Serial.println(F(")..."));
     attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), dmpDataReady, RISING);
-    mpuIntStatus = mpu.getIntStatus();
+    mpuIntStatus = SENSOR_MPU.getIntStatus();
     Serial.println(F("DMP ready! Waiting for first interrupt..."));
     dmpReady = true;
-    packetSize = mpu.dmpGetFIFOPacketSize();
+    packetSize = SENSOR_MPU.dmpGetFIFOPacketSize();
   } 
   else {
     Serial.print(F("DMP Initialization failed (code "));
@@ -493,11 +494,13 @@ void setup(){
     Serial.println("Connecting to WiFi..");
   }
   
-  initWebSocket();
+  ws.onEvent(onEvent);
+  server.addHandler(&ws);
 
   // Route for root / web page
+
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/index.html", String(), false, processor);
+    request->send(SPIFFS, "/index.html");
   });
 
   server.on("/bootstrap-grid.min.css", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -528,7 +531,8 @@ void setup(){
   dmpReady = true;
   MOTOR_R.suspendService();
   MOTOR_L.suspendService();
-  digitalWrite(LED, HIGH);
+  // digitalWrite(LED_R, HIGH);
+
   // Print ESP Local IP Address
   Serial.println(WiFi.localIP());
 }
@@ -545,6 +549,12 @@ void loop() {
   // Serial.println(" ppb");
 
   // int gassensorAnalog = analogRead(Gas_analog);
-  // Serial.print(gassensorAnalog);
+  // Serial.println(gassensorAnalog);
 
+  int battVolt = analogRead(SENSOR_BATTERY);
+  Serial.println(battVolt);
+  digitalWrite(LED_R, LOW);
+  delay(1000);
+  digitalWrite(LED_R, HIGH);
+  delay(1000);
 }
