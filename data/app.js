@@ -9,14 +9,15 @@ var connectionStatus = "...";
 
 var dataMap = {
   robotCor  : [
-                [0,0,0]],                // [X, Y, H]
+                [0,0,0]
+              ],                // [X, Y, H]
   wall      : [],
   gas       : {
                 voc   : [
-                          [100,100,500]  // [X, Y, VALUE]
+                          //[100,100,500]  // [X, Y, VALUE]
                         ],
                 co2   : [
-                          [100, 100,300]
+                          //[100, 100,300]
                         ],
                 smoke : [],
                 temp  : [],
@@ -36,15 +37,15 @@ function initWebSocket() {
 }
 
 function initButton() {
-  document.getElementById('button_set_heading').addEventListener('click', setHeading);
-  document.getElementById('button_set_forward').addEventListener('click', setForward);
-  document.getElementById('button_read_sensor').addEventListener('click', readSensor);
-  document.getElementById('button_calibrate_mpu').addEventListener('click', calibrateMpu);
+  document.getElementById("button_set_heading").addEventListener("click", setHeading);
+  document.getElementById("button_set_forward").addEventListener("click", setForward);
+  document.getElementById("button_read_sensor").addEventListener("click", readSensor);
+  document.getElementById("button_calibrate_mpu").addEventListener("click", calibrateMpu);
 }
 
 function setHeading(){
   var value = document.getElementById("input_set_heading").value;
-  websocket.send('setheading='+value);
+  websocket.send("setheading=" + value);
 
   var lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
   var lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
@@ -57,15 +58,15 @@ function setHeading(){
 
 function setForward(){
   var value = document.getElementById("input_set_forward").value;
-  websocket.send('setforward='+value);
+  websocket.send("setforward=" + value);
 
   var lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
   var lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
   var lastRobotCorH = dataMap.robotCor[dataMap.robotCor.length-1][2];
   
   angleMode(RADIANS);
-  lastRobotCorX = lastRobotCorX + parseInt((sin(lastRobotCorH * 0.0174533) * parseInt(value)),10);
-  lastRobotCorY = lastRobotCorY + parseInt((cos(lastRobotCorH * 0.0174533) * parseInt(value)),10);
+  lastRobotCorX = lastRobotCorX + parseInt((sin(lastRobotCorH * 0.0174533) * parseInt(value, 10)),10);
+  lastRobotCorY = lastRobotCorY + parseInt((cos(lastRobotCorH * 0.0174533) * parseInt(value, 10)),10);
   dataMap.robotCor.push([lastRobotCorX, lastRobotCorY, lastRobotCorH]);
 }
 
@@ -103,8 +104,9 @@ function onMessage(event) {
   }
 
   dataMap.gas.voc.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.voc, 10)]);
+  dataMap.gas.co2.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.co2, 10)]);
 
-  document.getElementById('state').innerHTML = wall;
+  document.getElementById("state").innerHTML = wall;
   wall = [];
 }
 
@@ -126,13 +128,13 @@ function normalizeAngle(a){
 
 function calibrateMpu(){
   var lastRobotCorH = dataMap.robotCor[dataMap.robotCor.length-1][2];
-  var angle_correction = lastRobotCorH + 180;
-  angle_correction = normalizeAngle(angle_correction);
-  websocket.send("calibratempu=" + angle_correction);
+  var angleCorrection = lastRobotCorH + 180;
+  angleCorrection = normalizeAngle(angleCorrection);
+  websocket.send("calibratempu=" + angleCorrection);
 }
 
 function readSensor(){
-  websocket.send('readsensor');
+  websocket.send("readsensor");
 }
 
 function setup() {
@@ -158,7 +160,7 @@ function draw() {
   textSize(15);
   textStyle(NORMAL);
   text("Connection :" + connectionStatus, 20, 20);
-  text("Coordinate (x, y):"+ lastRobotCorX + ", " + lastRobotCorY, 350, 20);  // offset from edge 30px
+  text("Coordinate (x, y):" + lastRobotCorX + ", " + lastRobotCorY, 350, 20);  // offset from edge 30px
   text("Heading :" + lastRobotCorH, 700, 20);
 
   // DRAW WALL

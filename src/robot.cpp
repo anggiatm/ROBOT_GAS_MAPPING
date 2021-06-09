@@ -38,7 +38,8 @@
  * | MOTOR_R->taskRunner | "FlexyStepper"    |     1024          |   NULL*   |    1     | MOTOR_R->xHandle            |   -1    | ESP_FlexyStepper.cpp  |
  * | MOTOR_L->taskRunner | "FlexyStepper"    |     1024          |   NULL*   |    1     | MOTOR_L->xHandle            |   -1    | ESP_FlexyStepper.cpp  |
  * | task_web_client     | "WEB_CLIENT_TASK" |     1024          |   NULL    |    1     | &Client_Task_Handle);       |   -1    | main.cpp              |
- * | task_read_sensor    | "MPU_RUN_TASK"    |     1024*2        |   NULL    |    1     | &ReadSensor_Task_Handle     |   -1    | main.cpp              | DEBUG MPU
+ * | task_read_sensor    | "MPU_RUN_TASK"    |     1024*2        |   NULL    |    1     | &ReadSensor_Task_Handle     |   -1    | main.cpp              | 
+ * | task_motor          | "TASK_MOTOR"      |     1024*2        |   NULL    |    1     | &Motor_Task_Handle          |   -1    | main.cpp              | 
  * |_____________________|___________________|___________________|___________|__________|_____________________________|_________|_______________________|
  *                                                      
 */
@@ -178,18 +179,18 @@ int calculateToTargetHeading(int target_increment){
 
 int calculateAngleRemaining(int mpu_target){
   // RUMUS UTAMA
-  int angle_reamining = mpu_target - getAngle();
-  // Serial.println(angle_reamining);
-  if (angle_reamining > 180){
-    angle_reamining = angle_reamining - 360;
+  int angle_remaining = mpu_target - getAngle();
+  // Serial.println(angle_remaining);
+  if (angle_remaining > 180){
+    angle_remaining = angle_remaining - 360;
   }
-  else if (angle_reamining < -180){
-    angle_reamining = angle_reamining + 360;
+  else if (angle_remaining < -180){
+    angle_remaining = angle_remaining + 360;
   }
   else {
-    angle_reamining = angle_reamining;
+    angle_remaining = angle_remaining;
   }
-  return angle_reamining;
+  return angle_remaining;
 }
 
 void setZeroStepPosition(){
