@@ -302,9 +302,17 @@ void task_read_sensor(void *pvParameters){
         }
       }
 
+      //measure CO2 and TVOC levels
+      SENSOR_VOC.measureAirQuality();
+      gas["voc"] = SENSOR_VOC.TVOC;
+      gas["co2"] = SENSOR_VOC.CO2;
+
+      //measure smoke
+      gas["smoke"] = analogRead(Gas_analog);
+
+      //measure battery level
+      gas["battery"] = analogRead(SENSOR_BATTERY);
       
-      gas["voc"] = "100";
-      gas["co2"] = "200";
       
       MOTOR_SERVO.write(SERVO_NEUTRAL);
       size_t len = serializeJson(root, buffer);  // serialize to buffer
@@ -551,10 +559,10 @@ void loop() {
   // int gassensorAnalog = analogRead(Gas_analog);
   // Serial.println(gassensorAnalog);
 
-  int battVolt = analogRead(SENSOR_BATTERY);
-  Serial.println(battVolt);
-  digitalWrite(LED_R, LOW);
-  delay(1000);
-  digitalWrite(LED_R, HIGH);
-  delay(1000);
+  // int battVolt = analogRead(SENSOR_BATTERY);
+  // Serial.println(battVolt);
+  // digitalWrite(LED_R, LOW);
+  // delay(1000);
+  // digitalWrite(LED_R, HIGH);
+  // delay(1000);
 }

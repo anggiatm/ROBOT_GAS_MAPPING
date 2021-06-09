@@ -8,12 +8,17 @@ var scale = 0.3;
 var connectionStatus = "...";
 
 var dataMap = {
-  robotCor  : [[0,0,0]],
+  robotCor  : [
+                [0,0,0]],                // [X, Y, H]
   wall      : [],
   gas       : {
-                voc   : [],
-                co2   : [],
-                asap  : [],
+                voc   : [
+                          [100,100,500]  // [X, Y, VALUE]
+                        ],
+                co2   : [
+                          [100, 100,300]
+                        ],
+                smoke : [],
                 temp  : [],
                 hum   : []
               }
@@ -97,52 +102,12 @@ function onMessage(event) {
     }
   }
 
+  dataMap.gas.voc.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.voc, 10)]);
+
   document.getElementById('state').innerHTML = wall;
   wall = [];
 }
 
-  
-
-// function onMessage(event) {
-//   var lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
-//   var lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
-//   lastRobotCorX = (0.3*lastRobotCorX) + 70;
-//   lastRobotCorY = -(0.3*lastRobotCorY) + 500;
-//   console.log(event.data);
-//   var data = JSON.parse(event.data);
-//   var keys = Object.keys(data);
-//   for (var j=0; j<360; j++){
-//     if(keys[j] != "voc" && keys[j] != "co2" && keys[j] != "asap" && keys[j] != "temp" && keys[j] != "hum"){
-//       var name = keys[j];
-//       var strIndex = String(name);
-//       var splitIndex = strIndex.split("a");
-//       var intIndex = parseInt(splitIndex[1], 10);
-      
-//       var value = data[name];
-//       wall[intIndex] = value;
-//     }
-//   }
-
-//   angleMode(RADIANS);
-//   for (var i=0; i<wall.length; i++){
-//     var a = i - 180;
-//     a = -a + 180;
-//     a = (a * 0.0174533);
-//     var num = parseInt(wall[i], 10);
-//     if (num){
-//       var x = ((sin(a) * num * 0.3) + lastRobotCorX);
-//       var y = ((cos(a) * num * 0.3) + lastRobotCorY);
-
-//       dataMap.wall.push([x, y]);
-//     }
-//     else {
-//       console.log("DEBUG : Array kosong/error di index #"+i);
-//     }
-//   }
-
-//   document.getElementById('state').innerHTML = wall;
-//   wall = [];
-// }
 
 function onLoad(event) {
   initWebSocket();
@@ -203,10 +168,27 @@ function draw() {
     point(dataMap.wall[i][0], dataMap.wall[i][1]);
   }
 
+  // DRAW GAS VOC
+  
+  for (var i = 0; i < dataMap.gas.voc.length; i++){
+    stroke(255,255,0);
+    strokeWeight(10);
+    point(dataMap.gas.voc[i][0], dataMap.gas.voc[i][1]);
+
+    noStroke();
+    textSize(10);
+    text("VOC : " + dataMap.gas.voc[i][2] + " ppm", dataMap.gas.voc[i][0] + 30, dataMap.gas.voc[i][1] - 30);
+    text("CO2 : " + dataMap.gas.co2[i][2] + " ppm", dataMap.gas.co2[i][0] + 30, dataMap.gas.co2[i][1] - 20);
+
+    stroke(255);
+    strokeWeight(1);
+    line(dataMap.gas.voc[i][0] + 5, dataMap.gas.voc[i][1] - 5, dataMap.gas.voc[i][0] + 30, dataMap.gas.voc[i][1] - 30);
+  }
+
   // ROBOT MODEL
   stroke(0);
-  angleMode(DEGREES);
   strokeWeight(1);
+  angleMode(DEGREES);
   circle(robotCorX, robotCorY, 20);
   translate(robotCorX, robotCorY);
   rotate(lastRobotCorH);
