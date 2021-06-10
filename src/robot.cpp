@@ -63,9 +63,6 @@ DynamicJsonDocument doc(9216); // fixed size 9216
 JsonObject root = doc.to<JsonObject>();
 char buffer[9216]; // create temp buffer
 
-// JsonObject wall = doc.createNestedObject("wall");
-// JsonObject gas = doc.createNestedObject("gas");
-
 JsonArray wall = doc.createNestedArray("wall");
 JsonObject gas = doc.createNestedObject("gas");
 
@@ -169,6 +166,7 @@ int getAngleRaw(){
 
 void calibrateMpu(int webui_angle){
   angle_offset = webui_angle - getAngleRaw();
+  ws.textAll("calibratempucomplete");
 }
 
 int calculateToTargetHeading(int target_increment){
@@ -222,9 +220,9 @@ void setHeading(int target){
     MOTOR_R.setTargetPositionRelativeInSteps(-target_step);
     MOTOR_L.setTargetPositionRelativeInSteps(target_step);
     // Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
-    // Serial.println(MOTOR_L.getCurrentPositionInSteps());
-    
+    // Serial.println(MOTOR_L.getCurrentPositionInSteps()); 
   }
+  ws.textAll("setheadingcomplete");
   suspendMotorTask();
 }
 
@@ -254,6 +252,7 @@ void forward(int target){
       angle_glide = calculateAngleRemaining(angle_stamp);
     }
   }
+  ws.textAll("setforwardcomplete");
   suspendMotorTask();
 }
 
