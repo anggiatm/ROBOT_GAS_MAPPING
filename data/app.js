@@ -45,6 +45,7 @@ let seqCalibrateMpu = 0;
 let seqReadSensor = 0;
 let seqForward = 0;
 let seqHeading = 0;
+let waiting = 0;
 
 window.addEventListener("load", onLoad);
 
@@ -138,6 +139,7 @@ function sequence(completeCommand){
       seqHeading      = 1;
       break;
   }
+  waiting = 0;
 }
 
 function onLoad(event) {
@@ -335,18 +337,23 @@ function draw() {
   rect(-1, 4, 2, -30);
 
   if (mode == 1){
-    // 1 calibrate mpu
-    // if (seqForward == 0 && seqHeading == 0 && seqReadSensor == 0 && seqCalibrateMpu == 0){
-    //   calibrateMpu();
-    //   seqCalibrateMpu = 1;
-    // }
-    // if (seqCalibrateMpu == 1){
-    //   readSensor();
-    // }
-    // if (seqReadSensor == 1){
-    //   setForward();
-    // }
-    console.log("AUTO")
+    if (waiting == 0){
+      // 1 calibrate mpu
+      if (seqForward == 0 && seqHeading == 0 && seqReadSensor == 0 && seqCalibrateMpu == 0){
+        calibrateMpu();
+        waiting = 1;
+      }
+      if (seqCalibrateMpu == 1){
+        readSensor();
+        waiting = 1;
+      }
+      if (seqReadSensor == 1){
+      setForward();
+      waiting =1
+    }
+  }
+    
+    console.log("AUTO");
     // 2 read sensor
 
     // 3 setforward 100
