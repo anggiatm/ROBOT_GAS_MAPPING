@@ -41,11 +41,13 @@ let buttonHoming;
 
 let mode = 0;
 
-let seqCalibrateMpu = 0;
+let seqCalibrateMpu = 1;
 let seqReadSensor = 0;
 let seqForward = 0;
 let seqHeading = 0;
+
 let waiting = 0;
+let cycle = 0; 
 
 window.addEventListener("load", onLoad);
 
@@ -78,8 +80,8 @@ function onMessage(event) {
   var lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
   lastRobotCorX = (scale*lastRobotCorX) + 70;
   lastRobotCorY = -(scale*lastRobotCorY) + 500;
-  // console.log(event.data);
-  if(event.data.length > 100){
+  console.log(event.data);
+  if(event.data.length > 50){
     var data = JSON.parse(event.data);
     angleMode(RADIANS);
     for (var i=0; i<data.wall.length; i++){
@@ -90,7 +92,6 @@ function onMessage(event) {
       if (num){
         var x = ((sin(a) * num * scale) + lastRobotCorX);
         var y = ((cos(a) * num * scale) + lastRobotCorY);
-
         dataMap.wall.push([x, y]);
       }
       else {
@@ -101,6 +102,7 @@ function onMessage(event) {
     dataMap.gas.co2.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.co2, 10)]);
 
     // document.getElementById("state").innerHTML = wall;
+    pathPlanning();
     wall = [];
     sequence("readsensorcomplete");
   }
@@ -110,29 +112,31 @@ function onMessage(event) {
 }
 
 function sequence(completeCommand){
+  
   switch (completeCommand){
-    case (completeCommand == "calibratempucomplete") :
+    case (completeCommand = "calibratempucomplete") :
+      // console.log(typeof "sd");
       seqCalibrateMpu = 1;
       seqReadSensor   = 0;
       seqForward      = 0;
       seqHeading      = 0;
       break;
 
-    case (completeCommand == "readsensorcomplete") :
+    case (completeCommand = "readsensorcomplete") :
       seqCalibrateMpu = 0;
       seqReadSensor   = 1;
       seqForward      = 0;
       seqHeading      = 0;
       break;
 
-    case (completeCommand == "setforwardcomplete") :
+    case (completeCommand = "setforwardcomplete") :
       seqCalibrateMpu = 0;
       seqReadSensor   = 0;
       seqForward      = 1;
       seqHeading      = 0;
       break;
 
-    case (completeCommand == "setheadingcomplete") :
+    case (completeCommand = "setheadingcomplete") :
       seqCalibrateMpu = 0;
       seqReadSensor   = 0;
       seqForward      = 0;
@@ -212,18 +216,45 @@ function setForward(){
   // }
 }
 
+function pathPlanning(){
+  let align = 180;
+  let deadband = 10;
+  let lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
+  let lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
+  let lastRobotCorH = dataMap.robotCor[dataMap.robotCor.length-1][2];
+  lastRobotCorX = (lastRobotCorX) + 70;
+  lastRobotCorY = -(lastRobotCorY) + 500;
+
+  let lastDataWall = dataMap.wall.length-1;
+
+  let front = [];
+  let firstFront = lastRobotCorH + align - deadband;
+  let lastFront = lastRobotCorH + align + deadband;
+
+  for(var i = 0; i<= lastDataWall; i++){
+    let jarakX = (dataMap.wall[i][0]) - lastRobotCorX;
+    let jarakY = (dataMap.wall[i][1]) - lastRobotCorY;
+    let jarak  = (Math.pow(jarakX, 2)) + (Math.pow(jarakY, 2));
+    jarak = Math.sqrt(jarak);
+    front.push(Math.round(jarak / scale));
+  }
+  console.log(front);
+}
+
 function startAuto(){
   mode = 1;
 }
 
 function stopAuto(){
   mode = 0;
+  cycle = 0;
 }
 
 
 function setup() {
   let canvas = createCanvas(windowWidth - 50, windowHeight -100);
   canvas.position(20, 70);
+  frameRate(5); 
 
   let controlSpacer = displayWidth - (displayWidth/4);
   let firstLine = 150;
@@ -309,6 +340,9 @@ function draw() {
   strokeWeight(2);
   for(var i = 0; i < dataMap.wall.length; i++){
     point(dataMap.wall[i][0], dataMap.wall[i][1]);
+    // if (i <= 250 && i >= 230){
+    //   point(dataMap.wall[i][0], dataMap.wall[i][1]);
+    // }
   }
 
   // DRAW GAS VOC
@@ -336,29 +370,31 @@ function draw() {
   rotate(lastRobotCorH);
   rect(-1, 4, 2, -30);
 
-  if (mode == 1){
-    if (waiting == 0){
-      // 1 calibrate mpu
-      if (seqForward == 0 && seqHeading == 0 && seqReadSensor == 0 && seqCalibrateMpu == 0){
-        calibrateMpu();
-        waiting = 1;
-      }
-      if (seqCalibrateMpu == 1){
-        readSensor();
-        waiting = 1;
-      }
-      if (seqReadSensor == 1){
-      setForward();
-      waiting =1
+  if (mode == 1 && waiting == 0){
+    // CALIBRATE MPU
+    if (cycle == 0){
+      calibrateMpu();
+      console.log("CALIBRATE MPU");
+      waiting = 1;
+      cycle = 1;
     }
-  }
+
+    // READ SENSOR
+    if (seqCalibrateMpu == 1){
+      readSensor();
+      waiting = 1;
+    }
+
+    // CEK SEKITAR
+    if (seqReadSensor ==  1){
+      let plan = pathPlanning();
+      
+    }
+
+    //FORWARD
     
-    console.log("AUTO");
-    // 2 read sensor
-
-    // 3 setforward 100
-
-    // 4 calibrate mpu
-    // 5 read sensor
+    
   }
+  // console.log("MODE : " + mode + " WAIT : " + waiting);
 }
+
