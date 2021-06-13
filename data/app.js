@@ -371,7 +371,7 @@ function draw() {
       right.push(lastDataWall[i]);
       point(x, y);
     }
-    if (i <= normalizeAngle(lastRobotCorH+180+10) && i >= normalizeAngle(lastRobotCorH+180-10)){
+    if (i <= normalizeAngle(lastRobotCorH+10) && i >= normalizeAngle(lastRobotCorH-10)){
       back.push(lastDataWall[i]);
       point(x, y);
     }
