@@ -2,7 +2,6 @@ var gateway = "ws://192.168.43.27/ws";
 // var gateway = "ws://192.168.1.11/ws";
 
 var websocket;
-var wall = [];
 let scale = 0.3;
 var connectionStatus = "...";
 
@@ -24,6 +23,11 @@ var dataMap = {
               }
 };
 
+let lastDataWall =[];
+let front =[];
+let right =[];
+let left =[];
+let back =[];
 
 let inputForward;
 let inputHeading;
@@ -58,14 +62,17 @@ function initWebSocket() {
   websocket.onclose   = onClose;
   websocket.onmessage = onMessage; // <-- add this line
 
+  // DUMMY WALL DATA
+  // var lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
+  // var lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
+  // lastRobotCorX = (scale*lastRobotCorX) + 70;
+  // lastRobotCorY = -(scale*lastRobotCorY) + 500;
+  // for(var i = 0; i < 360; i++){
+  //   var x = ((sin(i) * 150 * scale) + lastRobotCorX);
+  //   var y = ((cos(i) * 150 * scale) + lastRobotCorY);
+  //   dataMap.wall.push([x,y]);
+  // }
 }
-
-// function initButton() {
-//   document.getElementById("button_set_heading").addEventListener("click", setHeading);
-//   document.getElementById("button_set_forward").addEventListener("click", setForward);
-//   document.getElementById("button_read_sensor").addEventListener("click", readSensor);
-//   document.getElementById("button_calibrate_mpu").addEventListener("click", calibrateMpu);
-// }
 
 function onOpen(event) {
   connectionStatus = "Connection opened";
@@ -93,6 +100,7 @@ function onMessage(event) {
         var x = ((sin(a) * num * scale) + lastRobotCorX);
         var y = ((cos(a) * num * scale) + lastRobotCorY);
         dataMap.wall.push([x, y]);
+        lastDataWall[i] = num;
       }
       else {
         console.log("DEBUG : Array kosong/error di index #"+i);
@@ -102,7 +110,6 @@ function onMessage(event) {
     dataMap.gas.co2.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.co2, 10)]);
 
     // document.getElementById("state").innerHTML = wall;
-    pathPlanning();
     wall = [];
     sequence("readsensorcomplete");
   }
@@ -217,29 +224,35 @@ function setForward(){
 }
 
 function pathPlanning(){
-  let align = 180;
-  let deadband = 10;
-  let lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
-  let lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
-  let lastRobotCorH = dataMap.robotCor[dataMap.robotCor.length-1][2];
-  lastRobotCorX = (lastRobotCorX) + 70;
-  lastRobotCorY = -(lastRobotCorY) + 500;
 
-  let lastDataWall = dataMap.wall.length-1;
-
-  let front = [];
-  let firstFront = lastRobotCorH + align - deadband;
-  let lastFront = lastRobotCorH + align + deadband;
-
-  for(var i = 0; i<= lastDataWall; i++){
-    let jarakX = (dataMap.wall[i][0]) - lastRobotCorX;
-    let jarakY = (dataMap.wall[i][1]) - lastRobotCorY;
-    let jarak  = (Math.pow(jarakX, 2)) + (Math.pow(jarakY, 2));
-    jarak = Math.sqrt(jarak);
-    front.push(Math.round(jarak / scale));
-  }
-  console.log(front);
 }
+
+// function pathPlanning(){
+//   let align = 180;
+//   let deadbandX = 100;
+//   let deadbandY = 300;
+//   let lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
+//   let lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
+//   let lastRobotCorH = dataMap.robotCor[dataMap.robotCor.length-1][2];
+//   lastRobotCorX = (lastRobotCorX) + 70;
+//   lastRobotCorY = -(lastRobotCorY) + 500;
+
+//   let deadbandX = 100;
+//   let deadbandY = 300;
+//   angleMode(RADIANS);
+//   let front = lastRobotCorH;
+//   for(let i=0; i<deadbandY; i++){
+//     for(let j=-(deadbandX/2); j<=(deadbandX/2); j++){
+//       let x      = (cos(front*0.0174533) * j * scale);
+//       let y      = (sin(front*0.0174533) * j * scale);
+//       let xAlign = (cos((front - 90)*0.0174533) * i * scale);
+//       let yAlign = (sin((front - 90)*0.0174533) * i * scale);
+//       let xx = Math.round(x + xAlign + lastRobotCorX);
+//       let yy = Math.round(y + yAlign + lastRobotCorY);
+//       point(xx,yy);
+//     }
+//   }
+// }
 
 function startAuto(){
   mode = 1;
@@ -335,14 +348,41 @@ function draw() {
   text("Battery : ", 650, 20);
   text("Robot Status : ", 750, 20);
 
+  // DRAW LAST DATA WALL
+  angleMode(RADIANS);
+  stroke(0,255,0);
+  strokeWeight(5);
+  for(let i = 0; i < lastDataWall.length; i++){
+    let a = i - 180;
+    a = -a + 180;
+    a = (a * 0.0174533);
+    // let a = normalizeAngle(180-i) *0.0174533;
+    let x = ((sin(a) * lastDataWall[i] * scale) + robotCorX);
+    let y = ((cos(a) * lastDataWall[i] * scale) + robotCorY);
+    if (i <= normalizeAngle(lastRobotCorH+180+10) && i >= normalizeAngle(lastRobotCorH+180-10)){
+      front.push(lastDataWall[i]);
+      point(x, y);
+    }
+    if (i <= normalizeAngle(lastRobotCorH+90+10) && i >= normalizeAngle(lastRobotCorH+90-10)){
+      left.push(lastDataWall[i]);
+      point(x, y);
+    }
+    if (i <= normalizeAngle(lastRobotCorH+270+10) && i >= normalizeAngle(lastRobotCorH+270-10)){
+      right.push(lastDataWall[i]);
+      point(x, y);
+    }
+    if (i <= normalizeAngle(lastRobotCorH+180+10) && i >= normalizeAngle(lastRobotCorH+180-10)){
+      back.push(lastDataWall[i]);
+      point(x, y);
+    }
+    // point(x, y);
+  }
+
   // DRAW WALL
   stroke(255);
   strokeWeight(2);
   for(var i = 0; i < dataMap.wall.length; i++){
     point(dataMap.wall[i][0], dataMap.wall[i][1]);
-    // if (i <= 250 && i >= 230){
-    //   point(dataMap.wall[i][0], dataMap.wall[i][1]);
-    // }
   }
 
   // DRAW GAS VOC
@@ -370,6 +410,7 @@ function draw() {
   rotate(lastRobotCorH);
   rect(-1, 4, 2, -30);
 
+
   if (mode == 1 && waiting == 0){
     // CALIBRATE MPU
     if (cycle == 0){
@@ -391,9 +432,7 @@ function draw() {
       
     }
 
-    //FORWARD
-    
-    
+    //FORWARD 
   }
   // console.log("MODE : " + mode + " WAIT : " + waiting);
 }
