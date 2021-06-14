@@ -110,7 +110,7 @@ function onMessage(event) {
     dataMap.gas.co2.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.co2, 10)]);
 
     // document.getElementById("state").innerHTML = wall;
-    wall = [];
+    // wall = [];
     sequence("readsensorcomplete");
   }
   else {
@@ -119,7 +119,6 @@ function onMessage(event) {
 }
 
 function sequence(completeCommand){
-  
   switch (completeCommand){
     case (completeCommand = "calibratempucomplete") :
       // console.log(typeof "sd");
@@ -224,7 +223,64 @@ function setForward(){
 }
 
 function pathPlanning(){
+  var lastRobotCor = dataMap.robotCor.length-1;
+  var lastRobotCorX = dataMap.robotCor[lastRobotCor][0];
+  var lastRobotCorY = dataMap.robotCor[lastRobotCor][1];
+  var lastRobotCorH = dataMap.robotCor[lastRobotCor][2];
 
+  //value scale to map
+  var robotCorX = (lastRobotCorX*scale) + 70;
+  var robotCorY = -(lastRobotCorY*scale) + 500;
+
+  let jarakTerpendek;
+  let jarakPerbandingan;
+
+  let command;
+
+  angleMode(RADIANS);
+  stroke(0,255,0);
+  strokeWeight(5);
+  for(let i = 0; i < lastDataWall.length; i++){
+    let a = i - 180;
+    a = -a + 180;
+    a = (a * 0.0174533);
+    // let a = normalizeAngle(180-i) *0.0174533;
+    let x = ((sin(a) * lastDataWall[i] * scale) + robotCorX);
+    let y = ((cos(a) * lastDataWall[i] * scale) + robotCorY);
+    if (i <= normalizeAngle(lastRobotCorH+180+10) && i >= normalizeAngle(lastRobotCorH+180-10)){
+      front.push(lastDataWall[i]);
+      point(x, y);
+    }
+    if (i <= normalizeAngle(lastRobotCorH+90+10) && i >= normalizeAngle(lastRobotCorH+90-10)){
+      left.push(lastDataWall[i]);
+      point(x, y);
+    }
+    if (i <= normalizeAngle(lastRobotCorH+270+10) && i >= normalizeAngle(lastRobotCorH+270-10)){
+      right.push(lastDataWall[i]);
+      point(x, y);
+    }
+    if (i <= normalizeAngle(lastRobotCorH+10) && i >= normalizeAngle(lastRobotCorH-10)){
+      back.push(lastDataWall[i]);
+      point(x, y);
+    }
+    // point(x, y);
+  }
+
+  //cek depan
+  for(let i=0; i<front.length; i++){
+    jarakTerpendek = front[i];
+    jarakPerbandingan = front[i+1];
+    if(jarakPerbandingan < jarakTerpendek){
+      jarakTerpendek = jarakPerbandingan;
+    }
+  }
+  console.log(jarakTerpendek);
+  if (jarakTerpendek > 300){
+    command = "forward=30";
+  } else {
+    command = "heading=90";
+  }
+  return command;
 }
 
 // function pathPlanning(){
@@ -349,34 +405,34 @@ function draw() {
   text("Robot Status : ", 750, 20);
 
   // DRAW LAST DATA WALL
-  angleMode(RADIANS);
-  stroke(0,255,0);
-  strokeWeight(5);
-  for(let i = 0; i < lastDataWall.length; i++){
-    let a = i - 180;
-    a = -a + 180;
-    a = (a * 0.0174533);
-    // let a = normalizeAngle(180-i) *0.0174533;
-    let x = ((sin(a) * lastDataWall[i] * scale) + robotCorX);
-    let y = ((cos(a) * lastDataWall[i] * scale) + robotCorY);
-    if (i <= normalizeAngle(lastRobotCorH+180+10) && i >= normalizeAngle(lastRobotCorH+180-10)){
-      front.push(lastDataWall[i]);
-      point(x, y);
-    }
-    if (i <= normalizeAngle(lastRobotCorH+90+10) && i >= normalizeAngle(lastRobotCorH+90-10)){
-      left.push(lastDataWall[i]);
-      point(x, y);
-    }
-    if (i <= normalizeAngle(lastRobotCorH+270+10) && i >= normalizeAngle(lastRobotCorH+270-10)){
-      right.push(lastDataWall[i]);
-      point(x, y);
-    }
-    if (i <= normalizeAngle(lastRobotCorH+10) && i >= normalizeAngle(lastRobotCorH-10)){
-      back.push(lastDataWall[i]);
-      point(x, y);
-    }
-    // point(x, y);
-  }
+  // angleMode(RADIANS);
+  // stroke(0,255,0);
+  // strokeWeight(5);
+  // for(let i = 0; i < lastDataWall.length; i++){
+  //   let a = i - 180;
+  //   a = -a + 180;
+  //   a = (a * 0.0174533);
+  //   // let a = normalizeAngle(180-i) *0.0174533;
+  //   let x = ((sin(a) * lastDataWall[i] * scale) + robotCorX);
+  //   let y = ((cos(a) * lastDataWall[i] * scale) + robotCorY);
+  //   if (i <= normalizeAngle(lastRobotCorH+180+10) && i >= normalizeAngle(lastRobotCorH+180-10)){
+  //     front.push(lastDataWall[i]);
+  //     point(x, y);
+  //   }
+  //   if (i <= normalizeAngle(lastRobotCorH+90+10) && i >= normalizeAngle(lastRobotCorH+90-10)){
+  //     left.push(lastDataWall[i]);
+  //     point(x, y);
+  //   }
+  //   if (i <= normalizeAngle(lastRobotCorH+270+10) && i >= normalizeAngle(lastRobotCorH+270-10)){
+  //     right.push(lastDataWall[i]);
+  //     point(x, y);
+  //   }
+  //   if (i <= normalizeAngle(lastRobotCorH+10) && i >= normalizeAngle(lastRobotCorH-10)){
+  //     back.push(lastDataWall[i]);
+  //     point(x, y);
+  //   }
+  //   // point(x, y);
+  // }
 
   // DRAW WALL
   stroke(255);
@@ -414,25 +470,39 @@ function draw() {
   if (mode == 1 && waiting == 0){
     // CALIBRATE MPU
     if (cycle == 0){
-      calibrateMpu();
-      console.log("CALIBRATE MPU");
       waiting = 1;
       cycle = 1;
+      calibrateMpu();
+      console.log("CALIBRATE MPU");
     }
 
     // READ SENSOR
     if (seqCalibrateMpu == 1){
-      readSensor();
       waiting = 1;
+      console.log("READ SENSOR");
+      
+      readSensor();
     }
 
     // CEK SEKITAR
     if (seqReadSensor ==  1){
-      let plan = pathPlanning();
-      
+      console.log("PATH PLANNING");
+      waiting= 1;
+      command = pathPlanning();
+      command = command.split("=");
+      if (command[0] = "forward"){
+        console.log("SET FORWARD");
+        setForward(parseInt(command[1], 10));
+      }
+      if (command[0] = "heading"){
+        setHeading(parseInt(command[1],10));
+      }
     }
-
     //FORWARD 
+    if (seqForward == 1 || seqHeading == 1){
+      //next cycle
+      cycle = 0;
+    }
   }
   // console.log("MODE : " + mode + " WAIT : " + waiting);
 }

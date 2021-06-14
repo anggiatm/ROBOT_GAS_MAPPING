@@ -51,23 +51,22 @@ ESP_FlexyStepper MOTOR_L;
 
 //TaskHandle_t MPU_TaskInit_Handle;
 TaskHandle_t ReadSensor_Task_Handle;
-TaskHandle_t Client_Task_Handle;
-TaskHandle_t Motor_Task_Handle;
+// TaskHandle_t Client_Task_Handle;
+// TaskHandle_t Motor_Task_Handle;
 
 Servo MOTOR_SERVO;
 VL53L0X SENSOR_RANGE;
 MPU6050 SENSOR_MPU;
 SGP30 SENSOR_VOC;
 
-DynamicJsonDocument doc(9216); // fixed size 9216
+DynamicJsonDocument doc(1024*6); // fixed size 9216
 JsonObject root = doc.to<JsonObject>();
-char buffer[9216]; // create temp buffer
+char buffer[4096]; // create temp buffer
 
 JsonArray wall = doc.createNestedArray("wall");
 JsonObject gas = doc.createNestedObject("gas");
 
-
-bool dmpReady = false;
+// bool dmpReady = false;
 uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
 uint8_t devStatus;
 uint16_t packetSize;
@@ -79,9 +78,9 @@ int angle_old = 0;
 
 uint16_t count;
 bool hall_detect;
-int set_heading_running = 0;
-int set_forward_running = 0;
-int scanTask;
+uint8_t set_heading_running = 0;
+uint8_t set_forward_running = 0;
+uint8_t set_scan_running = 0;
 int angle_offset = 0;
 int calibrated_angle;
 
@@ -91,6 +90,7 @@ int val_forward;
 Quaternion q;           // [w, x, y, z]         quaternion container
 VectorFloat gravity;    // [x, y, z]            gravity vector
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
+volatile bool mpuInterrupt = false;
 
 // const char* ssid = "RP";
 // const char* password = "rumahpenelitian123";
@@ -119,10 +119,6 @@ String splitString(String data, char separator, int index){
   return found>index ? data.substring(strIndex[0], strIndex[1]) : "";
 }
 
-void sendHeading(){
-  ws.textAll(String("heading-value"));
-}
-
 int normalizeAngle(int a){
   if (a >= 360){
     a = a - 360;
@@ -135,20 +131,11 @@ int normalizeAngle(int a){
 }
 
 int getAngle(){
-    // int mapa;
     SENSOR_MPU.dmpGetCurrentFIFOPacket(fifoBuffer);
     SENSOR_MPU.dmpGetQuaternion(&q, fifoBuffer);
     SENSOR_MPU.dmpGetGravity(&gravity, &q);
     SENSOR_MPU.dmpGetYawPitchRoll(ypr, &q, &gravity);
-    // int raw = (ypr[0] * 57.2958)+180;
-    // if (raw<=180){
-    //     mapa = map(raw, 180, 0, 0, 180);
-    // }
-    // else {
-    //     mapa = map(raw, 359, 181, 181, 359);
-    // }
-    // return mapa;
-    // return raw;
+
     calibrated_angle = (-ypr[0] * 57.2958) + 180;
     calibrated_angle = calibrated_angle + angle_offset;
     calibrated_angle = normalizeAngle(calibrated_angle); 
@@ -252,36 +239,37 @@ void forward(int target){
       angle_glide = calculateAngleRemaining(angle_stamp);
     }
   }
-  ws.textAll("setforwardcomplete");
   suspendMotorTask();
 }
 
-void task_motor(void *param){
-  (void) param;
-  vTaskDelay(200);
-  while (1){
-    vTaskDelay(100);
-    if (set_heading_running > 0){
-      setHeading(val_head);
-      set_heading_running = 0;
-    }
-    if (set_forward_running > 0){
-      forward(val_forward);
-      set_forward_running = 0 ;
-    }
-  }
-}
+// void task_motor(void *param){
+//   (void) param;
+//   vTaskDelay(200);
+//   while (1){
+//     vTaskDelay(100);
+//     if (set_heading_running > 0){
+//       setHeading(val_head);
+//       set_heading_running = 0;
+//     }
+//     if (set_forward_running > 0){
+//       forward(val_forward);
+//       set_forward_running = 0 ;
+//       ws.textAll("setforwardcomplete");
+//     }
+//   }
+// }
 
 void task_read_sensor(void *pvParameters){
   (void) pvParameters;
-  vTaskDelay(200);
+  vTaskDelay(500);
   while (1){
-    vTaskDelay(1);
+    Serial.println(set_scan_running);
+    vTaskDelay(10);
     count = 0;
     int hall = 0;
     int old_hall = 0;
     
-    if (scanTask > 0){
+    if (set_scan_running > 0){
       MOTOR_SERVO.write(SERVO_RUN_CW);
       while (count <= 1){
         hall = digitalRead(HALL_SENSOR);
@@ -299,6 +287,7 @@ void task_read_sensor(void *pvParameters){
 
           angle_old = angle;
           Serial.println(angle);
+         
         }
       }
 
@@ -312,14 +301,24 @@ void task_read_sensor(void *pvParameters){
 
       //measure battery level
       gas["battery"] = analogRead(SENSOR_BATTERY);
-      
-      
+    
       MOTOR_SERVO.write(SERVO_NEUTRAL);
       size_t len = serializeJson(root, buffer);  // serialize to buffer
       ws.textAll(buffer, len);
       
-      scanTask = 0;
+      set_scan_running = 0;
     }
+
+    if (set_heading_running > 0){
+      setHeading(val_head);
+      set_heading_running = 0;
+    }
+    if (set_forward_running > 0){
+      forward(val_forward);
+      set_forward_running = 0 ;
+      ws.textAll("setforwardcomplete");
+    }
+    ws.cleanupClients();
   }
   vTaskDelete(NULL);
 }
@@ -347,7 +346,7 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
 
     else if (command == "readsensor"){
       // Serial.println("DEBUG : Reading Sensor..........");
-      scanTask = 1;
+      set_scan_running = 1;
       // Serial.println("DEBUG : Read Sensor Complete..........");
     }
 
@@ -384,13 +383,6 @@ void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType 
   }
 }
 
-void task_web_client(void*){
-	while(1){
-    ws.cleanupClients();
-    vTaskDelay(200);
-  } 
-}
-volatile bool mpuInterrupt = false;
 void dmpDataReady() {
     mpuInterrupt = true;
 }
@@ -407,7 +399,6 @@ void sensorAlignment(){
 }
 
 void setup(){
-  scanTask = 0;
   #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     Wire.begin();
     Wire.setClock(400000); 
@@ -449,7 +440,6 @@ void setup(){
       Serial.println("Failed to detect and initialize sensor!");
       while (1) {}
   }
-    
   // reduce timing budget to 20 ms (default is about 33 ms)
   SENSOR_RANGE.setMeasurementTimingBudget(20000);
 
@@ -481,7 +471,7 @@ void setup(){
     attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), dmpDataReady, RISING);
     mpuIntStatus = SENSOR_MPU.getIntStatus();
     Serial.println(F("DMP ready! Waiting for first interrupt..."));
-    dmpReady = true;
+    // dmpReady = true;
     packetSize = SENSOR_MPU.dmpGetFIFOPacketSize();
   } 
   else {
@@ -489,6 +479,7 @@ void setup(){
     Serial.print(devStatus);
     Serial.println(F(")"));
   }
+  delay(3000);
 
   MOTOR_R.connectToPins(STEP_R, DIR_R);
   MOTOR_L.connectToPins(STEP_L, DIR_L);
@@ -532,11 +523,11 @@ void setup(){
 
   xTaskCreateUniversal(task_read_sensor, "READ_SENSOR_TASK", 1024*2, NULL, 1, &ReadSensor_Task_Handle, -1);
   server.begin();
-  xTaskCreateUniversal(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle, -1);
-  xTaskCreateUniversal(task_motor, "TASK_MOTOR", 1024*2, NULL,1, &Motor_Task_Handle, -1);
+  // xTaskCreateUniversal(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle, -1);
+  // xTaskCreateUniversal(task_motor, "TASK_MOTOR", 1024*2, NULL,1, &Motor_Task_Handle, -1);
   //digitalWrite(ledPin, HIGH);
-  delay(3000);
-  dmpReady = true;
+  
+  // dmpReady = true;
   MOTOR_R.suspendService();
   MOTOR_L.suspendService();
   // digitalWrite(LED_R, HIGH);

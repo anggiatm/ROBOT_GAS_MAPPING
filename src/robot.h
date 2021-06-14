@@ -41,7 +41,7 @@
 #define SPEED_STEP_PER_SECOND 80
 
 #define SERVO_NEUTRAL 99
-#define SERVO_RUN_CW 94
+#define SERVO_RUN_CW 93 //94
 #define SERVO_RUN_ALIGNMENT 96
 
 #define HALL_SENSOR 19  // INVERTED !!! || ON = 0 || OFF = 1
