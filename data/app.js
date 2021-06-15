@@ -47,6 +47,7 @@ let mode = 0;
 
 let seqCalibrateMpu = 1;
 let seqReadSensor = 0;
+let seqExecute = 0;
 let seqForward = 0;
 let seqHeading = 0;
 
@@ -111,6 +112,8 @@ function onMessage(event) {
 
     // document.getElementById("state").innerHTML = wall;
     // wall = [];
+    // console.log(lastDataWall);
+    // console.log(lastDataWall.length);
     sequence("readsensorcomplete");
   }
   else {
@@ -199,10 +202,12 @@ function readSensor(){
   // }
 }
 
-function setHeading(){
-  // if(mode == 0){
-    // var value = document.getElementById("input_set_heading").value;
-    var value = inputHeading.value();
+function setHeading(value){
+  if (typeof value === "undefined") {
+    value = inputHeading.value();
+  }
+
+  if (value !== ""){
     websocket.send("setheading=" + value);
     var lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
     var lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
@@ -211,17 +216,19 @@ function setHeading(){
     lastRobotCorH = lastRobotCorH + parseInt(value, 10);
     lastRobotCorH = normalizeAngle(lastRobotCorH);
     dataMap.robotCor.push([lastRobotCorX, lastRobotCorY, lastRobotCorH]);
-  // }else{
-  //   alert("SEDANG  MODE AUTO");
-  // }
+  }
+  else{
+    console.log("input heading kosong");
+  }
 }
 
-function setForward(){
-  // if (mode == 0){
-    var value = inputForward.value();
-    // var value = document.getElementById("input_set_forward").value;
-    websocket.send("setforward=" + value);
+function setForward(value){
+  if (typeof value === "undefined") {
+    value = inputForward.value();
+  }
 
+  if (value !== ""){
+    websocket.send("setforward=" + value);
     var lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
     var lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
     var lastRobotCorH = dataMap.robotCor[dataMap.robotCor.length-1][2];
@@ -230,9 +237,10 @@ function setForward(){
     lastRobotCorX = lastRobotCorX + parseInt((sin(lastRobotCorH * 0.0174533) * parseInt(value, 10)),10);
     lastRobotCorY = lastRobotCorY + parseInt((cos(lastRobotCorH * 0.0174533) * parseInt(value, 10)),10);
     dataMap.robotCor.push([lastRobotCorX, lastRobotCorY, lastRobotCorH]);
-  // } else{
-  //   alert("SEDANG  MODE AUTO");
-  // }
+  }
+  else{
+    console.log("input forward kosong");
+  }
 }
 
 function pathPlanning(){
@@ -250,6 +258,14 @@ function pathPlanning(){
 
   let command;
 
+  let frontLeft = normalizeAngle(lastRobotCorH+180-10);
+  let frontRight = normalizeAngle(lastRobotCorH+180+10);
+  
+  let indexFront1 = frontLeft;
+  let indexFront2 = frontLeft + 359 - frontLeft;
+  let indexFront3 = lastRobotCorH;
+  let indexFront4 = frontRight;
+
   angleMode(RADIANS);
   stroke(0,255,0);
   strokeWeight(5);
@@ -260,7 +276,8 @@ function pathPlanning(){
     // let a = normalizeAngle(180-i) *0.0174533;
     let x = ((sin(a) * lastDataWall[i] * scale) + robotCorX);
     let y = ((cos(a) * lastDataWall[i] * scale) + robotCorY);
-    if (i <= normalizeAngle(lastRobotCorH+180+10) && i >= normalizeAngle(lastRobotCorH+180-10)){
+    
+    if (i <= frontLeft  && i >= frontRight){
       front.push(lastDataWall[i]);
       point(x, y);
     }
@@ -272,12 +289,14 @@ function pathPlanning(){
       right.push(lastDataWall[i]);
       point(x, y);
     }
-    if (i <= normalizeAngle(lastRobotCorH+10) && i >= normalizeAngle(lastRobotCorH-10)){
-      back.push(lastDataWall[i]);
-      point(x, y);
-    }
+    // if (i <= normalizeAngle(lastRobotCorH+10) && i >= normalizeAngle(lastRobotCorH-10)){
+    //   back.push(lastDataWall[i]);
+    //   point(x, y);
+    // }
     // point(x, y);
   }
+  console.log(frontLeft);
+  console.log(frontRight)
 
   //cek depan
   for(let i=0; i<front.length; i++){
@@ -293,35 +312,12 @@ function pathPlanning(){
   } else {
     command = 1;
   }
+  front = [];
+  left = [];
+  back = [];
+
   return command;
 }
-
-// function pathPlanning(){
-//   let align = 180;
-//   let deadbandX = 100;
-//   let deadbandY = 300;
-//   let lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
-//   let lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
-//   let lastRobotCorH = dataMap.robotCor[dataMap.robotCor.length-1][2];
-//   lastRobotCorX = (lastRobotCorX) + 70;
-//   lastRobotCorY = -(lastRobotCorY) + 500;
-
-//   let deadbandX = 100;
-//   let deadbandY = 300;
-//   angleMode(RADIANS);
-//   let front = lastRobotCorH;
-//   for(let i=0; i<deadbandY; i++){
-//     for(let j=-(deadbandX/2); j<=(deadbandX/2); j++){
-//       let x      = (cos(front*0.0174533) * j * scale);
-//       let y      = (sin(front*0.0174533) * j * scale);
-//       let xAlign = (cos((front - 90)*0.0174533) * i * scale);
-//       let yAlign = (sin((front - 90)*0.0174533) * i * scale);
-//       let xx = Math.round(x + xAlign + lastRobotCorX);
-//       let yy = Math.round(y + yAlign + lastRobotCorY);
-//       point(xx,yy);
-//     }
-//   }
-// }
 
 function startAuto(){
   mode = 1;
@@ -504,12 +500,12 @@ function draw() {
       if (comm == 0){
         console.log("SET FORWARD");
         // setForward(parseInt(command[1], 10));
-        setForward();
+        setForward(250);
       }
       if (comm == 1){
         console.log("SET HEADING");
         // setHeading(parseInt(command[1],10));
-        setHeading();
+        setHeading(90);
       }
     }
     //FORWARD 
