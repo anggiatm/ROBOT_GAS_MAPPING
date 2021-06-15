@@ -121,11 +121,11 @@ function onMessage(event) {
 function sequence(completeCommand){
   switch (completeCommand){
     case (completeCommand = "calibratempucomplete") :
-      // console.log(typeof "sd");
       seqCalibrateMpu = 1;
       seqReadSensor   = 0;
       seqForward      = 0;
       seqHeading      = 0;
+      waiting = 0;
       break;
 
     case (completeCommand = "readsensorcomplete") :
@@ -133,6 +133,7 @@ function sequence(completeCommand){
       seqReadSensor   = 1;
       seqForward      = 0;
       seqHeading      = 0;
+      waiting = 0;
       break;
 
     case (completeCommand = "setforwardcomplete") :
@@ -140,6 +141,7 @@ function sequence(completeCommand){
       seqReadSensor   = 0;
       seqForward      = 1;
       seqHeading      = 0;
+      waiting = 0;
       break;
 
     case (completeCommand = "setheadingcomplete") :
@@ -147,9 +149,20 @@ function sequence(completeCommand){
       seqReadSensor   = 0;
       seqForward      = 0;
       seqHeading      = 1;
+      waiting = 0;
       break;
+
+    case (completeCommand = "ROBOT BUSSY") :
+      seqCalibrateMpu = 0;
+      seqReadSensor   = 0;
+      seqForward      = 0;
+      seqHeading      = 0;
+      waiting = 1;
+      break;
+
+    default :
+    break;
   }
-  waiting = 0;
 }
 
 function onLoad(event) {
@@ -275,10 +288,10 @@ function pathPlanning(){
     }
   }
   console.log(jarakTerpendek);
-  if (jarakTerpendek > 300){
-    command = "forward=30";
+  if (jarakTerpendek > 400){
+    command = 0;
   } else {
-    command = "heading=90";
+    command = 1;
   }
   return command;
 }
@@ -323,7 +336,7 @@ function stopAuto(){
 function setup() {
   let canvas = createCanvas(windowWidth - 50, windowHeight -100);
   canvas.position(20, 70);
-  frameRate(5); 
+  frameRate(10); 
 
   let controlSpacer = displayWidth - (displayWidth/4);
   let firstLine = 150;
@@ -466,21 +479,20 @@ function draw() {
   rotate(lastRobotCorH);
   rect(-1, 4, 2, -30);
 
-
   if (mode == 1 && waiting == 0){
     // CALIBRATE MPU
     if (cycle == 0){
       waiting = 1;
       cycle = 1;
-      calibrateMpu();
       console.log("CALIBRATE MPU");
+      calibrateMpu();
     }
 
     // READ SENSOR
     if (seqCalibrateMpu == 1){
       waiting = 1;
       console.log("READ SENSOR");
-      
+      // setTimeout(readSensor, 3000);
       readSensor();
     }
 
@@ -488,14 +500,16 @@ function draw() {
     if (seqReadSensor ==  1){
       console.log("PATH PLANNING");
       waiting= 1;
-      command = pathPlanning();
-      command = command.split("=");
-      if (command[0] = "forward"){
+      let comm = pathPlanning();
+      if (comm == 0){
         console.log("SET FORWARD");
-        setForward(parseInt(command[1], 10));
+        // setForward(parseInt(command[1], 10));
+        setForward();
       }
-      if (command[0] = "heading"){
-        setHeading(parseInt(command[1],10));
+      if (comm == 1){
+        console.log("SET HEADING");
+        // setHeading(parseInt(command[1],10));
+        setHeading();
       }
     }
     //FORWARD 

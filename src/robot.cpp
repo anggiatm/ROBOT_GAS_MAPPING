@@ -38,7 +38,7 @@
  * | MOTOR_R->taskRunner | "FlexyStepper"    |     1024          |   NULL*   |    1     | MOTOR_R->xHandle            |   -1    | ESP_FlexyStepper.cpp  |
  * | MOTOR_L->taskRunner | "FlexyStepper"    |     1024          |   NULL*   |    1     | MOTOR_L->xHandle            |   -1    | ESP_FlexyStepper.cpp  |
  * | task_web_client     | "WEB_CLIENT_TASK" |     1024          |   NULL    |    1     | &Client_Task_Handle);       |   -1    | main.cpp              |
- * | task_read_sensor    | "MPU_RUN_TASK"    |     1024*2        |   NULL    |    1     | &ReadSensor_Task_Handle     |   -1    | main.cpp              | 
+ * | task_watch_command    | "MPU_RUN_TASK"    |     1024*2        |   NULL    |    1     | &ReadSensor_Task_Handle     |   -1    | main.cpp              | 
  * | task_motor          | "TASK_MOTOR"      |     1024*2        |   NULL    |    1     | &Motor_Task_Handle          |   -1    | main.cpp              | 
  * |_____________________|___________________|___________________|___________|__________|_____________________________|_________|_______________________|
  *                                                      
@@ -62,6 +62,7 @@ SGP30 SENSOR_VOC;
 DynamicJsonDocument doc(1024*6); // fixed size 9216
 JsonObject root = doc.to<JsonObject>();
 char buffer[4096]; // create temp buffer
+size_t buffer_len;
 
 JsonArray wall = doc.createNestedArray("wall");
 JsonObject gas = doc.createNestedObject("gas");
@@ -81,11 +82,14 @@ bool hall_detect;
 uint8_t set_heading_running = 0;
 uint8_t set_forward_running = 0;
 uint8_t set_scan_running = 0;
+uint8_t set_calibrate_running = 0;
+
 int angle_offset = 0;
 int calibrated_angle;
 
-int val_head;
+int val_heading;
 int val_forward;
+int val_calibrate;
 
 Quaternion q;           // [w, x, y, z]         quaternion container
 VectorFloat gravity;    // [x, y, z]            gravity vector
@@ -138,7 +142,8 @@ int getAngle(){
 
     calibrated_angle = (-ypr[0] * 57.2958) + 180;
     calibrated_angle = calibrated_angle + angle_offset;
-    calibrated_angle = normalizeAngle(calibrated_angle); 
+    calibrated_angle = normalizeAngle(calibrated_angle);
+    // Serial.println(SENSOR_MPU.getFIFOCount());
     return calibrated_angle;
 }
 
@@ -153,7 +158,6 @@ int getAngleRaw(){
 
 void calibrateMpu(int webui_angle){
   angle_offset = webui_angle - getAngleRaw();
-  ws.textAll("calibratempucomplete");
 }
 
 int calculateToTargetHeading(int target_increment){
@@ -199,6 +203,7 @@ void suspendMotorTask(){
 
 void setHeading(int target){
   resumeMotorTask();
+  SENSOR_MPU.resetFIFO();
   int mpu_target = calculateToTargetHeading(target);
 
   while (target > 1 || target < -1){                           //DEADBAND -1 to 1 degree
@@ -209,7 +214,6 @@ void setHeading(int target){
     // Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
     // Serial.println(MOTOR_L.getCurrentPositionInSteps()); 
   }
-  ws.textAll("setheadingcomplete");
   suspendMotorTask();
 }
 
@@ -242,13 +246,48 @@ void forward(int target){
   suspendMotorTask();
 }
 
+void scan(){
+  SENSOR_MPU.resetFIFO();
+  count = 0;
+  int hall = 0;
+  int old_hall = 0;
+  MOTOR_SERVO.write(SERVO_RUN_CW);
+  while (count <= 1){
+    hall = digitalRead(HALL_SENSOR);
+    if (hall != old_hall){
+      old_hall = hall;
+      count = count + 1;
+    }
+    
+    angle = getAngle();
+    if (angle != angle_old){
+      // root["a"+String(angle)] = SENSOR_RANGE.readRangeSingleMillimeters();
+      // wall["a"+String(angle)] = SENSOR_RANGE.readRangeSingleMillimeters();
+      wall[angle] = SENSOR_RANGE.readRangeSingleMillimeters();
+      angle_old = angle;
+      Serial.println(angle);
+    }
+  }
+  //measure CO2 and TVOC levels
+  SENSOR_VOC.measureAirQuality();
+  gas["voc"] = SENSOR_VOC.TVOC;
+  gas["co2"] = SENSOR_VOC.CO2;
+  //measure smoke
+  gas["smoke"] = analogRead(Gas_analog);
+  //measure battery level
+  gas["battery"] = analogRead(SENSOR_BATTERY);
+
+  MOTOR_SERVO.write(SERVO_NEUTRAL);
+  buffer_len = serializeJson(root, buffer);  // serialize to buffer
+}
+
 // void task_motor(void *param){
 //   (void) param;
 //   vTaskDelay(200);
 //   while (1){
 //     vTaskDelay(100);
 //     if (set_heading_running > 0){
-//       setHeading(val_head);
+//       setHeading(val_heading);
 //       set_heading_running = 0;
 //     }
 //     if (set_forward_running > 0){
@@ -259,64 +298,37 @@ void forward(int target){
 //   }
 // }
 
-void task_read_sensor(void *pvParameters){
+
+void task_watch_command(void *pvParameters){
   (void) pvParameters;
   vTaskDelay(500);
   while (1){
-    Serial.println(set_scan_running);
-    vTaskDelay(10);
-    count = 0;
-    int hall = 0;
-    int old_hall = 0;
-    
     if (set_scan_running > 0){
-      MOTOR_SERVO.write(SERVO_RUN_CW);
-      while (count <= 1){
-        hall = digitalRead(HALL_SENSOR);
-        if (hall != old_hall){
-          old_hall = hall;
-          count = count + 1;
-        }
-        
-        angle = getAngle();
-        if (angle != angle_old){
-          // root["a"+String(angle)] = SENSOR_RANGE.readRangeSingleMillimeters();
-          // wall["a"+String(angle)] = SENSOR_RANGE.readRangeSingleMillimeters();
-
-          wall[angle] = SENSOR_RANGE.readRangeSingleMillimeters();
-
-          angle_old = angle;
-          Serial.println(angle);
-         
-        }
-      }
-
-      //measure CO2 and TVOC levels
-      SENSOR_VOC.measureAirQuality();
-      gas["voc"] = SENSOR_VOC.TVOC;
-      gas["co2"] = SENSOR_VOC.CO2;
-
-      //measure smoke
-      gas["smoke"] = analogRead(Gas_analog);
-
-      //measure battery level
-      gas["battery"] = analogRead(SENSOR_BATTERY);
-    
-      MOTOR_SERVO.write(SERVO_NEUTRAL);
-      size_t len = serializeJson(root, buffer);  // serialize to buffer
-      ws.textAll(buffer, len);
-      
+      scan();
       set_scan_running = 0;
+      // vTaskDelay(1000/portTICK_PERIOD_MS);
+      ws.textAll(buffer, buffer_len);
     }
 
     if (set_heading_running > 0){
-      setHeading(val_head);
+      setHeading(val_heading);
       set_heading_running = 0;
+      // vTaskDelay(1000/portTICK_PERIOD_MS);
+      ws.textAll("setheadingcomplete");
     }
+
     if (set_forward_running > 0){
       forward(val_forward);
       set_forward_running = 0 ;
+      // vTaskDelay(1000/portTICK_PERIOD_MS);
       ws.textAll("setforwardcomplete");
+    }
+
+    if (set_calibrate_running > 0){
+      calibrateMpu(val_calibrate);
+      set_calibrate_running = 0;
+      // vTaskDelay(1000/portTICK_PERIOD_MS);
+      ws.textAll("calibratempucomplete");
     }
     ws.cleanupClients();
   }
@@ -327,37 +339,38 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
     data[len] = 0;
-    String command = splitString((char*)data, '=', 0);
-    String value = splitString((char*)data, '=', 1);
+    if (set_heading_running > 0 || set_forward_running > 0 || set_scan_running > 0 || set_calibrate_running > 0){
+      // REJECT COMMAND
+      ws.textAll("ROBOT BUSSY");
+    } else {
+      String command = splitString((char*)data, '=', 0);
+      String value = splitString((char*)data, '=', 1);
+      if (command == "setheading"){
+        Serial.println("DEBUG : COMMAND SET HEADING");
+        val_heading = value.toInt();
+        set_heading_running = 1;
+      }
 
-    if (command == "setheading"){
-      Serial.println("SET HEADING");
-      val_head = value.toInt();
-      set_heading_running = 1;
-      // setHeading(val_head);
-    }
-    
-    else if (command == "setforward"){
-      Serial.println("SET FORWARD");
-      val_forward = value.toInt();
-      set_forward_running = 1;
-      // forward(val_forward);
-    }
+      else if (command == "setforward"){
+        Serial.println("DEBUG : COMMAND SET FORWARD");
+        val_forward = value.toInt();
+        set_forward_running = 1;
+      }
 
-    else if (command == "readsensor"){
-      // Serial.println("DEBUG : Reading Sensor..........");
-      set_scan_running = 1;
-      // Serial.println("DEBUG : Read Sensor Complete..........");
-    }
+      else if (command == "readsensor"){
+        Serial.println("DEBUG : COMMAND READ SENSOR");
+        set_scan_running = 1;
+      }
 
-    else if (command == "calibratempu"){
-      Serial.println("CALIBRATE MPU");
-      int val_angle = value.toInt();
-      calibrateMpu(val_angle);
-    }
-    
-    else {
-      Serial.println("UNKNOWN COMMAND");
+      else if (command == "calibratempu"){
+        Serial.println("DEBUG : COMMAND CALIBRATE MPU");
+        val_calibrate = value.toInt();
+        set_calibrate_running = 1;
+      }
+
+      else {
+        Serial.println("UNKNOWN COMMAND");
+      }
     }
   }
 }
@@ -491,6 +504,7 @@ void setup(){
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Connecting to WiFi..");
+    // ESP.restart();
   }
   
   ws.onEvent(onEvent);
@@ -521,7 +535,7 @@ void setup(){
   MOTOR_R.startAsService(-1);
   MOTOR_L.startAsService(-1);      
 
-  xTaskCreateUniversal(task_read_sensor, "READ_SENSOR_TASK", 1024*2, NULL, 1, &ReadSensor_Task_Handle, -1);
+  xTaskCreateUniversal(task_watch_command, "READ_SENSOR_TASK", 1024*6, NULL, 1, &ReadSensor_Task_Handle, -1);
   server.begin();
   // xTaskCreateUniversal(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle, -1);
   // xTaskCreateUniversal(task_motor, "TASK_MOTOR", 1024*2, NULL,1, &Motor_Task_Handle, -1);
