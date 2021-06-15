@@ -28,6 +28,10 @@ let front =[];
 let right =[];
 let left =[];
 let back =[];
+let lineLinear =[];
+
+let leftX = [];
+  let leftY = [];
 
 let inputForward;
 let inputHeading;
@@ -53,6 +57,8 @@ let seqHeading = 0;
 
 let waiting = 0;
 let cycle = 0; 
+
+
 
 window.addEventListener("load", onLoad);
 
@@ -114,6 +120,7 @@ function onMessage(event) {
     // wall = [];
     // console.log(lastDataWall);
     // console.log(lastDataWall.length);
+    pathPlanning();
     sequence("readsensorcomplete");
   }
   else {
@@ -243,60 +250,148 @@ function setForward(value){
   }
 }
 
+function findLineByLeastSquares(values_x, values_y) {
+  var sum_x = 0;
+  var sum_y = 0;
+  var sum_xy = 0;
+  var sum_xx = 0;
+  var count = 0;
+
+  /*
+   * We'll use those variables for faster read/write access.
+   */
+  var x = 0;
+  var y = 0;
+  var values_length = values_x.length;
+
+  if (values_length != values_y.length) {
+      throw new Error('The parameters values_x and values_y need to have same size!');
+  }
+
+  /*
+   * Nothing to do.
+   */
+  if (values_length === 0) {
+      return [ [], [] ];
+  }
+
+  /*
+   * Calculate the sum for each of the parts necessary.
+   */
+  for (var v = 0; v<values_length; v++) {
+      x = values_x[v];
+      y = values_y[v];
+      sum_x += x;
+      sum_y += y;
+      sum_xx += x*x;
+      sum_xy += x*y;
+      count++;
+  }
+
+  /*
+   * Calculate m and b for the formular:
+   * y = x * m + b
+   */
+  var m = (count*sum_xy - sum_x*sum_y) / (count*sum_xx - sum_x*sum_x);
+  var b = (sum_y/count) - (m*sum_x)/count;
+
+  /*
+   * We will make the x and y result line now
+   */
+  var result_values_x = [];
+  var result_values_y = [];
+
+  for (var v = 0; v<values_length; v++) {
+      x = values_x[v];
+      y = x * m + b;
+      result_values_x.push(x);
+      result_values_y.push(y);
+  }
+
+  return [result_values_x, result_values_y];
+}
+
+
 function pathPlanning(){
-  var lastRobotCor = dataMap.robotCor.length-1;
-  var lastRobotCorX = dataMap.robotCor[lastRobotCor][0];
-  var lastRobotCorY = dataMap.robotCor[lastRobotCor][1];
-  var lastRobotCorH = dataMap.robotCor[lastRobotCor][2];
+  let lastRobotCor = dataMap.robotCor.length-1;
+  let lastRobotCorX = dataMap.robotCor[lastRobotCor][0];
+  let lastRobotCorY = dataMap.robotCor[lastRobotCor][1];
+  let lastRobotCorH = dataMap.robotCor[lastRobotCor][2];
 
   //value scale to map
-  var robotCorX = (lastRobotCorX*scale) + 70;
-  var robotCorY = -(lastRobotCorY*scale) + 500;
+  let robotCorX = (lastRobotCorX*scale) + 70;
+  let robotCorY = -(lastRobotCorY*scale) + 500;
 
   let jarakTerpendek;
   let jarakPerbandingan;
 
   let command;
 
-  let frontLeft = normalizeAngle(lastRobotCorH+180-10);
-  let frontRight = normalizeAngle(lastRobotCorH+180+10);
   
-  let indexFront1 = frontLeft;
-  let indexFront2 = frontLeft + 359 - frontLeft;
-  let indexFront3 = lastRobotCorH;
-  let indexFront4 = frontRight;
 
+  
+  for (let i = -10; i<=10; i++){
+    front.push(lastDataWall[normalizeAngle(lastRobotCorH+180+i)]);
+    right.push(lastDataWall[normalizeAngle(lastRobotCorH+270+i)]);
+    left.push(lastDataWall[normalizeAngle(lastRobotCorH+90+i)]);
+    back.push(lastDataWall[normalizeAngle(lastRobotCorH+i)]);
+  }
+  
   angleMode(RADIANS);
   stroke(0,255,0);
   strokeWeight(5);
-  for(let i = 0; i < lastDataWall.length; i++){
-    let a = i - 180;
+  for (let j=0; j<left.length; j++){
+    let a = 90-10+j - 180;
     a = -a + 180;
     a = (a * 0.0174533);
     // let a = normalizeAngle(180-i) *0.0174533;
-    let x = ((sin(a) * lastDataWall[i] * scale) + robotCorX);
-    let y = ((cos(a) * lastDataWall[i] * scale) + robotCorY);
-    
-    if (i <= frontLeft  && i >= frontRight){
-      front.push(lastDataWall[i]);
-      point(x, y);
-    }
-    if (i <= normalizeAngle(lastRobotCorH+90+10) && i >= normalizeAngle(lastRobotCorH+90-10)){
-      left.push(lastDataWall[i]);
-      point(x, y);
-    }
-    if (i <= normalizeAngle(lastRobotCorH+270+10) && i >= normalizeAngle(lastRobotCorH+270-10)){
-      right.push(lastDataWall[i]);
-      point(x, y);
-    }
-    // if (i <= normalizeAngle(lastRobotCorH+10) && i >= normalizeAngle(lastRobotCorH-10)){
-    //   back.push(lastDataWall[i]);
-    //   point(x, y);
-    // }
-    // point(x, y);
+    let x = ((sin(a) * left[j] * scale) + robotCorX);
+    let y = ((cos(a) * left[j] * scale) + robotCorY);
+    leftX.push(x);
+    leftY.push(y);
   }
-  console.log(frontLeft);
-  console.log(frontRight)
+
+  lineLinear = findLineByLeastSquares(leftX, leftY);
+  console.log(lineLinear);
+  console.log(lineLinear.length);
+  console.log(lineLinear[0][0]);
+  console.log(lineLinear[1][0]);
+  console.log(lineLinear[0][19]);
+  console.log(lineLinear[1][19]);
+  
+  
+
+  
+  // for(let i = 0; i < lastDataWall.length; i++){
+  //   let a = i - 180;
+  //   a = -a + 180;
+  //   a = (a * 0.0174533);
+  //   // let a = normalizeAngle(180-i) *0.0174533;
+  //   let x = ((sin(a) * lastDataWall[i] * scale) + robotCorX);
+  //   let y = ((cos(a) * lastDataWall[i] * scale) + robotCorY);
+    
+  //   if (i <= frontLeft  && i >= frontRight){
+  //     front.push(lastDataWall[i]);
+  //     point(x, y);
+  //   }
+  //   if (i <= normalizeAngle(lastRobotCorH+90+10) && i >= normalizeAngle(lastRobotCorH+90-10)){
+  //     left.push(lastDataWall[i]);
+  //     point(x, y);
+  //   }
+  //   if (i <= normalizeAngle(lastRobotCorH+270+10) && i >= normalizeAngle(lastRobotCorH+270-10)){
+  //     right.push(lastDataWall[i]);
+  //     point(x, y);
+  //   }
+  //   // if (i <= normalizeAngle(lastRobotCorH+10) && i >= normalizeAngle(lastRobotCorH-10)){
+  //   //   back.push(lastDataWall[i]);
+  //   //   point(x, y);
+  //   // }
+  //   // point(x, y);
+  // }
+  // console.log(front);
+  // console.log(right);
+  // console.log(left);
+  // console.log(back);
 
   //cek depan
   for(let i=0; i<front.length; i++){
@@ -313,7 +408,8 @@ function pathPlanning(){
     command = 1;
   }
   front = [];
-  left = [];
+  right = [];
+  // left = [];
   back = [];
 
   return command;
@@ -413,6 +509,27 @@ function draw() {
   text("Battery : ", 650, 20);
   text("Robot Status : ", 750, 20);
 
+  // LINE LINEAR
+  if (lineLinear.length!=0){
+    // text("sajkdhf",500,500);
+    arraylength = lineLinear[0].length - 2;
+    let x1 = lineLinear[0][0];
+    let y1 = lineLinear[1][0];
+    let x2 = lineLinear[0][arraylength];
+    let y2 = lineLinear[1][arraylength];
+    strokeWeight(7);
+    stroke(255,0,0);
+    line(x1, y1, x2, y2);
+    // stroke(0,255,0);
+    // strokeWeight(5);
+    // for(let i=0; i<leftX.length; i++){
+    //   point(leftX[i],leftY[i]);
+    // }
+    // for (var i=0; i<lineLinear[0].length-1; i++){
+    //   line(lineLinear[0][i], lineLinear[1][i],lineLinear[0][i+1],lineLinear[1][i+1]);
+    // }
+  }
+
   // DRAW LAST DATA WALL
   // angleMode(RADIANS);
   // stroke(0,255,0);
@@ -474,6 +591,8 @@ function draw() {
   translate(robotCorX, robotCorY);
   rotate(lastRobotCorH);
   rect(-1, 4, 2, -30);
+
+  
 
   if (mode == 1 && waiting == 0){
     // CALIBRATE MPU
