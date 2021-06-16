@@ -24,14 +24,26 @@ var dataMap = {
 };
 
 let lastDataWall =[];
-let front =[];
-let right =[];
-let left =[];
-let back =[];
+let frontLong = [];
+let rightLong = [];
+let leftLong  = [];
+let backLong  = [];
+
+let frontShort = [];
+let rightShort = [];
+let leftShort  = [];
+let backShort  = [];
+
+
+
 let lineLinear =[];
+let angleDiff;
 
 let leftX = [];
-  let leftY = [];
+let leftY = [];
+
+let pathPlanHeading;
+let pathPlanForward;
 
 let inputForward;
 let inputHeading;
@@ -51,7 +63,7 @@ let mode = 0;
 
 let seqCalibrateMpu = 1;
 let seqReadSensor = 0;
-let seqExecute = 0;
+let seqPathPlanning = 0;
 let seqForward = 0;
 let seqHeading = 0;
 
@@ -120,7 +132,7 @@ function onMessage(event) {
     // wall = [];
     // console.log(lastDataWall);
     // console.log(lastDataWall.length);
-    pathPlanning();
+    // pathPlanning();
     sequence("readsensorcomplete");
   }
   else {
@@ -133,6 +145,7 @@ function sequence(completeCommand){
     case (completeCommand = "calibratempucomplete") :
       seqCalibrateMpu = 1;
       seqReadSensor   = 0;
+      seqPathPlanning = 0;
       seqForward      = 0;
       seqHeading      = 0;
       waiting = 0;
@@ -141,6 +154,7 @@ function sequence(completeCommand){
     case (completeCommand = "readsensorcomplete") :
       seqCalibrateMpu = 0;
       seqReadSensor   = 1;
+      seqPathPlanning = 0;
       seqForward      = 0;
       seqHeading      = 0;
       waiting = 0;
@@ -149,6 +163,7 @@ function sequence(completeCommand){
     case (completeCommand = "setforwardcomplete") :
       seqCalibrateMpu = 0;
       seqReadSensor   = 0;
+      seqPathPlanning = 0;
       seqForward      = 1;
       seqHeading      = 0;
       waiting = 0;
@@ -157,14 +172,25 @@ function sequence(completeCommand){
     case (completeCommand = "setheadingcomplete") :
       seqCalibrateMpu = 0;
       seqReadSensor   = 0;
+      seqPathPlanning = 0;
       seqForward      = 0;
       seqHeading      = 1;
+      waiting = 0;
+      break;
+
+    case (completeCommand = "pathplanningcomplete") :
+      seqCalibrateMpu = 0;
+      seqReadSensor   = 0;
+      seqPathPlanning = 1;
+      seqForward      = 0;
+      seqHeading      = 0;
       waiting = 0;
       break;
 
     case (completeCommand = "ROBOT BUSSY") :
       seqCalibrateMpu = 0;
       seqReadSensor   = 0;
+      seqPathPlanning = 0;
       seqForward      = 0;
       seqHeading      = 0;
       waiting = 1;
@@ -308,7 +334,8 @@ function findLineByLeastSquares(values_x, values_y) {
       result_values_y.push(y);
   }
 
-  return [result_values_x, result_values_y];
+  // return [result_values_x, result_values_y];
+  return [m,b];
 }
 
 
@@ -322,97 +349,129 @@ function pathPlanning(){
   let robotCorX = (lastRobotCorX*scale) + 70;
   let robotCorY = -(lastRobotCorY*scale) + 500;
 
-  let jarakTerpendek;
-  let jarakPerbandingan;
+  let jarakTerpendekDepan;
+  let jarakPerbandinganDepan;
+  let jarakTerpendekKanan;
+  let jarakPerbandinganKanan;
+  let jarakTerpendekKiri;
+  let jarakPerbandinganKiri;
+  let jarakTerpendekBelakang;
+  let jarakPerbandinganBelakang;
 
-  let command;
+  let deadBandLong  = 30;
+  let deadBandShort = 10;
 
-  
+  for (let i = -deadBandLong; i<=deadBandLong; i++){
+    frontLong[i+deadBandLong] = lastDataWall[normalizeAngle(lastRobotCorH+180+i)];
+    rightLong[i+deadBandLong] = lastDataWall[normalizeAngle(lastRobotCorH+270+i)];
+    leftLong[i+deadBandLong] = lastDataWall[normalizeAngle(lastRobotCorH+90+i)];
+    backLong[i+deadBandLong] = lastDataWall[normalizeAngle(lastRobotCorH+i)];
+  }
 
-  
-  for (let i = -10; i<=10; i++){
-    front.push(lastDataWall[normalizeAngle(lastRobotCorH+180+i)]);
-    right.push(lastDataWall[normalizeAngle(lastRobotCorH+270+i)]);
-    left.push(lastDataWall[normalizeAngle(lastRobotCorH+90+i)]);
-    back.push(lastDataWall[normalizeAngle(lastRobotCorH+i)]);
+  for (let i = -deadBandShort; i<=deadBandShort; i++){
+    frontShort[i+deadBandShort] = lastDataWall[normalizeAngle(lastRobotCorH+180+i)];
+    rightShort[i+deadBandShort] = lastDataWall[normalizeAngle(lastRobotCorH+270+i)];
+    leftShort[i+deadBandShort] = lastDataWall[normalizeAngle(lastRobotCorH+90+i)];
+    backShort[i+deadBandShort] = lastDataWall[normalizeAngle(lastRobotCorH+i)];
+  }
+
+  //cek depan
+  for(let i=0; i<frontShort.length; i++){
+    jarakTerpendekDepan = frontShort[i];
+    jarakPerbandinganDepan = frontShort[i+1];
+    if(jarakPerbandinganDepan < jarakTerpendekDepan){
+      jarakTerpendekDepan = jarakPerbandinganDepan;
+    }
+  }
+
+  //cek kanan
+  for(let i=0; i<rightShort.length; i++){
+    jarakTerpendekKanan = rightShort[i];
+    jarakPerbandinganKanan = rightShort[i+1];
+    if(jarakPerbandinganKanan < jarakTerpendekKanan){
+      jarakTerpendekKanan = jarakPerbandinganKanan;
+    }
+  }
+
+  //cek kiri
+  for(let i=0; i<leftShort.length; i++){
+    jarakTerpendekKiri = leftShort[i];
+    jarakPerbandinganKiri = leftShort[i+1];
+    if(jarakPerbandinganKiri < jarakTerpendekKiri){
+      jarakTerpendekKiri = jarakPerbandinganKiri;
+    }
+  }
+
+  //cek belakang
+  for(let i=0; i<backShort.length; i++){
+    jarakTerpendekBelakang = backShort[i];
+    jarakPerbandinganBelakang = backShort[i+1];
+    if(jarakPerbandinganBelakang < jarakTerpendekBelakang){
+      jarakTerpendekBelakang = jarakPerbandinganBelakang;
+    }
   }
   
+  // LINEAR REGRESSION
   angleMode(RADIANS);
   stroke(0,255,0);
   strokeWeight(5);
-  for (let j=0; j<left.length; j++){
-    let a = 90-10+j - 180;
+  for (let j=0; j<leftLong.length; j++){
+    let a = 90-deadBandLong+j - 180;
     a = -a + 180;
     a = (a * 0.0174533);
     // let a = normalizeAngle(180-i) *0.0174533;
-    let x = ((sin(a) * left[j] * scale) + robotCorX);
-    let y = ((cos(a) * left[j] * scale) + robotCorY);
+    let x = ((sin(a) * leftLong[j] * scale) + robotCorX);
+    let y = ((cos(a) * leftLong[j] * scale) + robotCorY);
     leftX.push(x);
     leftY.push(y);
   }
-
   lineLinear = findLineByLeastSquares(leftX, leftY);
   console.log(lineLinear);
   console.log(lineLinear.length);
-  console.log(lineLinear[0][0]);
-  console.log(lineLinear[1][0]);
-  console.log(lineLinear[0][19]);
-  console.log(lineLinear[1][19]);
+
+  // function y = x * m + b
+  // function x = (y - b) / m
+  let m = lineLinear[0];
+  let b = lineLinear[1];
+
+  //PYTHAGORAS
+  //miring = sqrt(pow(x,2)+pow(y,2))
+  let samping = -(robotCorY-100-robotCorY);
+  let depan   = -((robotCorY-b)/m - (robotCorY-b-100)/m);
+  let miring  = sqrt(pow(samping,2)+pow(depan,2))
+
+  //TRIGONOMETRY
+  //SIN (angle) = depan / miring
+  let sudut = (asin(depan/miring))*180/Math.PI;
+  console.log(sudut);
   
-  
+  // pathPlanForward = 100;
+  // pathPlanHeading = Math.round(sudut);
 
   
-  // for(let i = 0; i < lastDataWall.length; i++){
-  //   let a = i - 180;
-  //   a = -a + 180;
-  //   a = (a * 0.0174533);
-  //   // let a = normalizeAngle(180-i) *0.0174533;
-  //   let x = ((sin(a) * lastDataWall[i] * scale) + robotCorX);
-  //   let y = ((cos(a) * lastDataWall[i] * scale) + robotCorY);
-    
-  //   if (i <= frontLeft  && i >= frontRight){
-  //     front.push(lastDataWall[i]);
-  //     point(x, y);
-  //   }
-  //   if (i <= normalizeAngle(lastRobotCorH+90+10) && i >= normalizeAngle(lastRobotCorH+90-10)){
-  //     left.push(lastDataWall[i]);
-  //     point(x, y);
-  //   }
-  //   if (i <= normalizeAngle(lastRobotCorH+270+10) && i >= normalizeAngle(lastRobotCorH+270-10)){
-  //     right.push(lastDataWall[i]);
-  //     point(x, y);
-  //   }
-  //   // if (i <= normalizeAngle(lastRobotCorH+10) && i >= normalizeAngle(lastRobotCorH-10)){
-  //   //   back.push(lastDataWall[i]);
-  //   //   point(x, y);
-  //   // }
-  //   // point(x, y);
+  console.log(jarakTerpendekDepan);
+  console.log(jarakTerpendekKanan);
+  console.log(jarakTerpendekKiri);
+  console.log(jarakTerpendekBelakang);
+
+  // if (jarakTerpendekKiri < 200){
+  //   pathPlanHeading = Math.round(sudut);
+  //   pathPlanForward = 100;
+  // } else {
+  //   pathPlanHeading = 0;
+  //   pathPlanForward = 100;
   // }
-  // console.log(front);
-  // console.log(right);
-  // console.log(left);
-  // console.log(back);
 
-  //cek depan
-  for(let i=0; i<front.length; i++){
-    jarakTerpendek = front[i];
-    jarakPerbandingan = front[i+1];
-    if(jarakPerbandingan < jarakTerpendek){
-      jarakTerpendek = jarakPerbandingan;
-    }
+  if (jarakTerpendekDepan < 400){
+    pathPlanHeading = 90;
+    pathPlanForward = 200;
   }
-  console.log(jarakTerpendek);
-  if (jarakTerpendek > 400){
-    command = 0;
-  } else {
-    command = 1;
+  else{
+    pathPlanHeading = 0;
+    pathPlanForward = 200;
   }
-  front = [];
-  right = [];
-  // left = [];
-  back = [];
 
-  return command;
+  sequence("pathplanningcomplete");
 }
 
 function startAuto(){
@@ -509,26 +568,7 @@ function draw() {
   text("Battery : ", 650, 20);
   text("Robot Status : ", 750, 20);
 
-  // LINE LINEAR
-  if (lineLinear.length!=0){
-    // text("sajkdhf",500,500);
-    arraylength = lineLinear[0].length - 2;
-    let x1 = lineLinear[0][0];
-    let y1 = lineLinear[1][0];
-    let x2 = lineLinear[0][arraylength];
-    let y2 = lineLinear[1][arraylength];
-    strokeWeight(7);
-    stroke(255,0,0);
-    line(x1, y1, x2, y2);
-    // stroke(0,255,0);
-    // strokeWeight(5);
-    // for(let i=0; i<leftX.length; i++){
-    //   point(leftX[i],leftY[i]);
-    // }
-    // for (var i=0; i<lineLinear[0].length-1; i++){
-    //   line(lineLinear[0][i], lineLinear[1][i],lineLinear[0][i+1],lineLinear[1][i+1]);
-    // }
-  }
+  
 
   // DRAW LAST DATA WALL
   // angleMode(RADIANS);
@@ -583,6 +623,51 @@ function draw() {
     line(dataMap.gas.voc[i][0] + 5, dataMap.gas.voc[i][1] - 5, dataMap.gas.voc[i][0] + 30, dataMap.gas.voc[i][1] - 30);
   }
 
+  // LINE LINEAR
+  if (lineLinear.length!=0){
+    // text("sajkdhf",500,500);
+    // arraylength = lineLinear[0].length - 2;
+    // let x1 = lineLinear[0][0];
+    // let y1 = lineLinear[1][0];
+    // let x2 = lineLinear[0][arraylength];
+    // let y2 = lineLinear[1][arraylength];
+
+    //y = x * m + b
+    let m = lineLinear[0];
+    let b = lineLinear[1];
+    strokeWeight(1);
+    stroke(255,0,0);
+    line((robotCorY-b)/m, robotCorY, (robotCorY-b-100)/m, robotCorY-100);      // sisi miring
+    line((robotCorY-b)/m, robotCorY, (robotCorY-b)/m, robotCorY-100);          // sisi samping  Y
+    line((robotCorY-b)/m, robotCorY-100, (robotCorY-b-100)/m, robotCorY-100);  // sisi depan    X
+
+    //PYTHAGORAS
+    //miring = sqrt(pow(x,2)+pow(y,2))
+    let samping = -(robotCorY-100-robotCorY);
+    let depan   = -((robotCorY-b)/m - (robotCorY-b-100)/m);
+    let miring  = sqrt(pow(samping,2)+pow(depan,2))
+    text ("samping " +samping, 400,400);
+    text ("depan "+depan, 400,300);
+    text ("miring " +miring,400,250);
+
+    //TRIGONOMETRY
+    //SIN (angle) = depan / miring
+    let sudut = asin(depan/miring);
+    text ("sudut " +sudut, 400, 200);
+
+
+
+
+    // stroke(0,255,0);
+    // strokeWeight(5);
+    // for(let i=0; i<leftX.length; i++){
+    //   point(leftX[i],leftY[i]);
+    // }
+    // for (var i=0; i<lineLinear[0].length-1; i++){
+    //   line(lineLinear[0][i], lineLinear[1][i],lineLinear[0][i+1],lineLinear[1][i+1]);
+    // }
+  }
+
   // ROBOT MODEL
   stroke(0);
   strokeWeight(1);
@@ -591,8 +676,6 @@ function draw() {
   translate(robotCorX, robotCorY);
   rotate(lastRobotCorH);
   rect(-1, 4, 2, -30);
-
-  
 
   if (mode == 1 && waiting == 0){
     // CALIBRATE MPU
@@ -607,28 +690,40 @@ function draw() {
     if (seqCalibrateMpu == 1){
       waiting = 1;
       console.log("READ SENSOR");
-      // setTimeout(readSensor, 3000);
       readSensor();
     }
 
     // CEK SEKITAR
     if (seqReadSensor ==  1){
-      console.log("PATH PLANNING");
       waiting= 1;
-      let comm = pathPlanning();
-      if (comm == 0){
-        console.log("SET FORWARD");
-        // setForward(parseInt(command[1], 10));
-        setForward(250);
-      }
-      if (comm == 1){
-        console.log("SET HEADING");
-        // setHeading(parseInt(command[1],10));
-        setHeading(90);
-      }
+      console.log("PATH PLANNING");
+      pathPlanning();
+
+      // let comm = pathPlanning();
+      // comm = comm.split("=");
+      // if (comm[0].equals("F")){
+      //   console.log("SET FORWARD");
+      //   // setForward(parseInt(command[1], 10));
+      //   setForward(parseInt(comm[1], 10));
+      // }
+      // if (comm[0].equals("H")){
+      //   console.log("SET HEADING");
+      //   // setHeading(parseInt(command[1],10));
+      //   setHeading(parseInt(comm[1], 10));
+      // }
     }
     //FORWARD 
-    if (seqForward == 1 || seqHeading == 1){
+    if (seqPathPlanning == 1){
+      waiting=1;
+      console.log("SET HEADING");
+      setHeading(pathPlanHeading);
+    }
+    if (seqHeading == 1){
+      waiting=1;
+      console.log("SET FORWARD");
+      setForward(pathPlanForward);
+    }
+    if (seqForward == 1){
       //next cycle
       cycle = 0;
     }
