@@ -30,8 +30,6 @@ battery::battery(/* args */)
 {
 }
 
-
-
 int battery::getBatteryAdc(){
     return analogRead(SENSOR_BATTERY);
 }
@@ -45,7 +43,7 @@ float battery::getBatteryVoltage(){
 }
 
 int battery::getBatteryPercentage(){
-    return map(getBatteryAdc(), 0, 3909, 0, 100);
+    return map(getBatteryVoltage()*100, 1020, 1260, 0, 100);
 }
 
 battery::~battery()

@@ -12,6 +12,7 @@
 #include <ESP32Servo.h>
 #include <ArduinoJson.h>
 #include "SparkFun_SGP30_Arduino_Library.h"
+#include <battery.h>
 
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     #include "Wire.h"
@@ -38,7 +39,7 @@
 #define STEPPER_ENABLE_PIN 13
 
 // #define SPEED_MM_PER_SECOND 35
-#define SPEED_STEP_PER_SECOND 80
+#define SPEED_STEP_PER_SECOND 100
 
 #define SERVO_NEUTRAL 99
 #define SERVO_RUN_CW 93 //94
@@ -47,7 +48,6 @@
 #define HALL_SENSOR 19  // INVERTED !!! || ON = 0 || OFF = 1
 // #define LED 2
 
-#define SENSOR_BATTERY 39
 #define SENSOR_DHT11 35
 
 #define LED_R 15

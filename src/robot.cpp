@@ -58,6 +58,7 @@ Servo MOTOR_SERVO;
 VL53L0X SENSOR_RANGE;
 MPU6050 SENSOR_MPU;
 SGP30 SENSOR_VOC;
+battery SENSOR_BATTERY;
 
 DynamicJsonDocument doc(1024*6); // fixed size 9216
 JsonObject root = doc.to<JsonObject>();
@@ -275,7 +276,8 @@ void scan(){
   //measure smoke
   gas["smoke"] = analogRead(Gas_analog);
   //measure battery level
-  gas["battery"] = analogRead(SENSOR_BATTERY);
+  gas["battVolt"] = SENSOR_BATTERY.getBatteryVoltage();
+  gas["battPers"] = SENSOR_BATTERY.getBatteryPercentage();
 
   MOTOR_SERVO.write(SERVO_NEUTRAL);
   buffer_len = serializeJson(root, buffer);  // serialize to buffer
@@ -551,6 +553,8 @@ void setup(){
 }
 
 void loop() {
+  // Serial.println(SENSOR_BATTERY.getBatteryVoltage());
+  // Serial.println(SENSOR_BATTERY.getBatteryPercentage());
   // Serial.println(getAngle());
   // delay(1000); //Wait 1 second
   // //measure CO2 and TVOC levels
