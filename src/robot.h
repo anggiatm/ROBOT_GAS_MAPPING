@@ -13,6 +13,10 @@
 #include <ArduinoJson.h>
 #include "SparkFun_SGP30_Arduino_Library.h"
 #include <battery.h>
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+#include <DHT_U.h>
+
 
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     #include "Wire.h"
@@ -24,6 +28,7 @@
 
 #define INTERRUPT_PIN 5
 #define OUTPUT_READABLE_YAWPITCHROLL
+#define DHTTYPE DHT11   // DHT 11
 
 //#define PIN_SDA 21
 //#define PIN_SCL 22
@@ -39,7 +44,7 @@
 #define STEPPER_ENABLE_PIN 13
 
 // #define SPEED_MM_PER_SECOND 35
-#define SPEED_STEP_PER_SECOND 100
+#define SPEED_STEP_PER_SECOND 130
 
 #define SERVO_NEUTRAL 99
 #define SERVO_RUN_CW 93 //94
@@ -48,13 +53,13 @@
 #define HALL_SENSOR 19  // INVERTED !!! || ON = 0 || OFF = 1
 // #define LED 2
 
-#define SENSOR_DHT11 35
+#define DHT11_PIN 35
 
 #define LED_R 15
 #define LED_G 2
 #define LED_B 4
 
-#define FAN_RELAY 18
+#define FAN_RELAY_PIN 18
 
 class robot {
     public:

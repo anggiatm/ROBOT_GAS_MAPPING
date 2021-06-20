@@ -108,6 +108,7 @@ AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
 int Gas_analog = 34;    // used for ESP32
+DHT_Unified SENSOR_DHT(DHT11_PIN, DHTTYPE);
 
 String splitString(String data, char separator, int index){
   int found = 0;
@@ -249,6 +250,7 @@ void forward(int target){
 
 void scan(){
   SENSOR_MPU.resetFIFO();
+  digitalWrite(FAN_RELAY_PIN, HIGH);
   count = 0;
   int hall = 0;
   int old_hall = 0;
@@ -259,7 +261,6 @@ void scan(){
       old_hall = hall;
       count = count + 1;
     }
-    
     angle = getAngle();
     if (angle != angle_old){
       // root["a"+String(angle)] = SENSOR_RANGE.readRangeSingleMillimeters();
@@ -278,6 +279,7 @@ void scan(){
   //measure battery level
   gas["battVolt"] = SENSOR_BATTERY.getBatteryVoltage();
   gas["battPers"] = SENSOR_BATTERY.getBatteryPercentage();
+  digitalWrite(FAN_RELAY_PIN, LOW);
 
   MOTOR_SERVO.write(SERVO_NEUTRAL);
   buffer_len = serializeJson(root, buffer);  // serialize to buffer
@@ -436,6 +438,7 @@ void setup(){
   //Initializes sensor for air quality readings
   //measureAirQuality should be called in one second increments after a call to initAirQuality
   SENSOR_VOC.initAirQuality();
+  SENSOR_DHT.begin();
 
   pinMode(HALL_SENSOR, INPUT);
   
@@ -445,7 +448,7 @@ void setup(){
   pinMode(LED_G, OUTPUT);
   pinMode(LED_B, OUTPUT);
 
-  pinMode(FAN_RELAY,OUTPUT);
+  pinMode(FAN_RELAY_PIN,OUTPUT);
 
   digitalWrite(STEPPER_ENABLE_PIN, HIGH);
   sensorAlignment();
@@ -553,6 +556,14 @@ void setup(){
 }
 
 void loop() {
+  // sensors_event_t event;
+  // SENSOR_DHT.temperature().getEvent(&event);
+  // Serial.println(event.temperature);
+  // Serial.println(analogRead(DHT11_PIN));
+  // Read temperature as Celsius (the default)
+  // float t = SENSOR_DHT.readTemperature();
+  // Serial.println(h);
+  // Serial.println(t);
   // Serial.println(SENSOR_BATTERY.getBatteryVoltage());
   // Serial.println(SENSOR_BATTERY.getBatteryPercentage());
   // Serial.println(getAngle());

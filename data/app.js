@@ -31,6 +31,17 @@ var dataMap = {
               }
 };
 
+let dataGrid = [
+                  [0,0,0],
+                  [0,0,0],
+                  [0,0,0]
+               ];
+let curGridCol = 1;
+let curGridRow = 1;
+
+let mapOffsetX = 150;
+let mapOffsetY = 450;
+
 let lastDataWall =[];
 let frontLong = [];
 let rightLong = [];
@@ -42,10 +53,9 @@ let rightShort = [];
 let leftShort  = [];
 let backShort  = [];
 
+let pointing = 0;
+
 let firstTimeAlignment;
-let uTurnRight = 0;
-let uTurnLeft = 0;
-let forwardState = 0;
 let RTH = 0;
 
 let lineLinear =[];
@@ -82,8 +92,6 @@ let seqHeading = 0;
 let waiting = 0;
 let cycle = 0; 
 
-
-
 window.addEventListener("load", onLoad);
 
 function initWebSocket() {
@@ -96,8 +104,8 @@ function initWebSocket() {
   // DUMMY WALL DATA
   // var lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
   // var lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
-  // lastRobotCorX = (scale*lastRobotCorX) + 70;
-  // lastRobotCorY = -(scale*lastRobotCorY) + 500;
+  // lastRobotCorX = (scale*lastRobotCorX) + mapOffsetX;
+  // lastRobotCorY = -(scale*lastRobotCorY) + mapOffsetY;
   // for(var i = 0; i < 360; i++){
   //   var x = ((sin(i) * 150 * scale) + lastRobotCorX);
   //   var y = ((cos(i) * 150 * scale) + lastRobotCorY);
@@ -116,8 +124,8 @@ function onClose(event) {
 function onMessage(event) {
   var lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
   var lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
-  lastRobotCorX = (scale*lastRobotCorX) + 70;
-  lastRobotCorY = -(scale*lastRobotCorY) + 500;
+  lastRobotCorX = (scale*lastRobotCorX) + mapOffsetX;
+  lastRobotCorY = -(scale*lastRobotCorY) + mapOffsetY;
   console.log(event.data);
   if(event.data.length > 50){
     var data = JSON.parse(event.data);
@@ -127,7 +135,7 @@ function onMessage(event) {
       a = -a + 180;
       a = (a * 0.0174533);
       var num = parseInt(data.wall[i], 10);
-      if (num){
+      if (num && num<=450){
         var x = ((sin(a) * num * scale) + lastRobotCorX);
         var y = ((cos(a) * num * scale) + lastRobotCorY);
         dataMap.wall.push([x, y]);
@@ -140,7 +148,7 @@ function onMessage(event) {
     dataMap.gas.voc.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.voc, 10)]);
     dataMap.gas.co2.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.co2, 10)]);
     dataMap.gas.smoke.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.smoke, 10)]);
-    dataMap.gas.battVolt.push([lastRobotCorX, lastRobotCorY, parseFloat(data.gas.battVolt, 10)]);
+    dataMap.gas.battVolt.push([lastRobotCorX, lastRobotCorY, parseFloat(data.gas.battVolt).toFixed(2)]);
     dataMap.gas.battPers.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.battPers, 10)]);
 
     // document.getElementById("state").innerHTML = wall;
@@ -244,6 +252,17 @@ function sequence(completeCommand){
 function onLoad(event) {
   initWebSocket();
   // initButton();
+  let a = [
+    [0,0,0],
+    [0,0,0]
+  ];
+  // console.log(a.length);
+  // console.log(a[0].length);
+  for (let i=0; i<a.length; i++ ){
+    for(let j=0; j<a[0].length; j++){
+      console.log(a[i][j]);
+    }
+  }
 }
 
 function normalizeAngle(a){
@@ -382,6 +401,112 @@ function findLineByLeastSquares(values_x, values_y) {
   return [m,b];
 }
 
+function updateDataGrid(kanan, kiri, depan, belakang, pointing){
+  // 0 = tidak tau
+  // 1 = belum di scan
+  // 2 = sudah discan
+  // 8 = tembok
+
+  // column row sekarang sudah discan
+  dataGrid[curGridCol][curGridRow] = 2;
+
+  let jarakTerpendekDepan;
+  let jarakTerpendekBelakang;
+  let jarakTerpendekKanan;
+  let jarakTerpendekKiri;
+
+  //pointing
+  // 0 = 0 derajat
+  // 1 = 90 derajat
+  // 2 = 180 derajat
+  // 3 = 270 derajat
+
+  switch (pointing){
+    case 0 :
+      jarakTerpendekDepan     = depan;
+      jarakTerpendekBelakang  = belakang;
+      jarakTerpendekKanan     = kanan;
+      jarakTerpendekKiri      = kiri;
+      break;
+    case 1 :
+      jarakTerpendekDepan     = kiri;
+      jarakTerpendekBelakang  = kanan;
+      jarakTerpendekKanan     = depan;
+      jarakTerpendekKiri      = belakang;
+      break;
+    case 2 :
+      jarakTerpendekDepan     = belakang;
+      jarakTerpendekBelakang  = depan;
+      jarakTerpendekKanan     = kiri;
+      jarakTerpendekKiri      = kanan;
+      break;
+    case 3 :
+      jarakTerpendekDepan     = kanan;
+      jarakTerpendekBelakang  = kiri;
+      jarakTerpendekKanan     = belakang;
+      jarakTerpendekKiri      = depan;
+      break;
+  }
+
+  // DATA GRID
+  // CEK DATA GRID DEPAN
+  if (jarakTerpendekDepan < 400){                                                 // terdeteksi tembok
+    dataGrid[curGridCol][curGridRow+1] = 8;
+  } else{                                                                         // bukan tembok
+    if (dataGrid[curGridCol][curGridRow+1] == 2){                                 // jika sudah discan -> 
+      dataGrid[curGridCol][curGridRow+1] = dataGrid[curGridCol][curGridRow+1];    // do nothing
+    }
+    else{                                                                         // jika belum discan
+      dataGrid[curGridCol][curGridRow+1] = 1;                                     // masukan data belum discan
+    }
+  }
+  // CEK DATA GRID KIRI
+  if (jarakTerpendekKiri < 400){                                                 // terdeteksi tembok
+    dataGrid[curGridCol-1][curGridRow] = 8;
+  } else{                                                                         // bukan tembok
+    if (dataGrid[curGridCol-1][curGridRow] == 2){                                 // jika sudah discan -> 
+      dataGrid[curGridCol-1][curGridRow] = dataGrid[curGridCol-1][curGridRow];    // do nothing
+    }
+    else{                                                                         // jika belum discan
+      dataGrid[curGridCol-1][curGridRow] = 1;                                     // masukan data belum discan
+    }
+  }
+  // CEK DATA GRID KANAN
+  if (jarakTerpendekKanan < 400){                                                 // terdeteksi tembok
+    dataGrid[curGridCol+1][curGridRow] = 8;
+  } else{                                                                         // bukan tembok
+    if (dataGrid[curGridCol+1][curGridRow] == 2){                                 // jika sudah discan -> 
+      dataGrid[curGridCol+1][curGridRow] = dataGrid[curGridCol+1][curGridRow];    // do nothing
+    }
+    else{                                                                         // jika belum discan
+      dataGrid[curGridCol+1][curGridRow] = 1;                                     // masukan data belum discan
+    }
+  }
+  // CEK DATA GRID BELAKANG
+  if (jarakTerpendekBelakang < 400){                                                 // terdeteksi tembok
+    dataGrid[curGridCol][curGridRow-1] = 8;
+  } else{                                                                         // bukan tembok
+    if (dataGrid[curGridCol][curGridRow-1] == 2){                                 // jika sudah discan -> 
+      dataGrid[curGridCol][curGridRow-1] = dataGrid[curGridCol][curGridRow-1];    // do nothing
+    }
+    else{                                                                         // jika belum discan
+      dataGrid[curGridCol][curGridRow-1] = 1;                                     // masukan data belum discan
+    }
+  }
+}
+
+function normalizePointing(p){
+  if (p > 3){
+    p = p - 4;
+  }
+  else if (p < 0){
+    p = 4 + p;
+  }
+  else{
+    p=p;
+  }
+  return p;
+}
 
 function pathPlanning(){
   let lastRobotCor = dataMap.robotCor.length-1;
@@ -390,8 +515,8 @@ function pathPlanning(){
   let lastRobotCorH = dataMap.robotCor[lastRobotCor][2];
 
   //value scale to map
-  let robotCorX = (lastRobotCorX*scale) + 70;
-  let robotCorY = -(lastRobotCorY*scale) + 500;
+  let robotCorX = (lastRobotCorX*scale) + mapOffsetX;
+  let robotCorY = -(lastRobotCorY*scale) + mapOffsetY;
 
   let jarakTerpendekDepan;
   let jarakPerbandinganDepan;
@@ -419,7 +544,7 @@ function pathPlanning(){
     backShort[i+deadBandShort] = lastDataWall[normalizeAngle(lastRobotCorH+i)];
   }
 
-  //cek depan
+  //KALKULASI JARAK TERPENDEK DEPAN
   for(let i=0; i<frontShort.length; i++){
     jarakTerpendekDepan = frontShort[i];
     jarakPerbandinganDepan = frontShort[i+1];
@@ -428,7 +553,7 @@ function pathPlanning(){
     }
   }
 
-  //cek kanan
+  //KALKULASI JARAK TERPENDEK KANAN
   for(let i=0; i<rightShort.length; i++){
     jarakTerpendekKanan = rightShort[i];
     jarakPerbandinganKanan = rightShort[i+1];
@@ -437,7 +562,7 @@ function pathPlanning(){
     }
   }
 
-  //cek kiri
+  //KALKULASI JARAK TERPENDEK KIRI
   for(let i=0; i<leftShort.length; i++){
     jarakTerpendekKiri = leftShort[i];
     jarakPerbandinganKiri = leftShort[i+1];
@@ -446,7 +571,7 @@ function pathPlanning(){
     }
   }
 
-  //cek belakang
+  //KALKULASI JARAK TERPENDEK BELAKANG
   for(let i=0; i<backShort.length; i++){
     jarakTerpendekBelakang = backShort[i];
     jarakPerbandinganBelakang = backShort[i+1];
@@ -454,6 +579,174 @@ function pathPlanning(){
       jarakTerpendekBelakang = jarakPerbandinganBelakang;
     }
   }
+  updateDataGrid(jarakTerpendekKanan, jarakTerpendekKiri, jarakTerpendekDepan, jarakTerpendekBelakang, pointing);
+  
+  console.log(dataGrid);
+
+  // 0 = tidak tau
+  // 1 = belum di scan
+  // 2 = sudah discan
+  // 8 = tembok 
+
+  switch (pointing){
+    case 0:
+      // CEK DATA GRID YANG TERSEDIA
+      if (dataGrid[curGridCol-1][curGridRow] == 1){              // CEK KIRI
+        pathPlanHeading = -90;
+        pointing = normalizePointing(pointing-1);
+        pathPlanForward = 250;
+        curGridCol      = curGridCol - 1;
+        curGridRow      = curGridRow;
+      }
+      else{
+        if (dataGrid[curGridCol][curGridRow+1] == 1){           // CEK DEPAN
+          for (let i=0; i<dataGrid.length; i++){
+            dataGrid[i].push(0);
+          }
+          pathPlanHeading = 0;
+          pointing = normalizePointing(pointing);
+          pathPlanForward = 250;
+          curGridCol = curGridCol;
+          curGridRow = curGridRow+1;
+        }
+        else {                                                // CEK KANAN
+          if(dataGrid[curGridCol+1][curGridRow] == 1){
+            let dumpArray =[];
+          for (let i=0; i<dataGrid[0].length; i++){
+            dumpArray.push(0);
+          }
+          dataGrid.push(dumpArray);
+          pathPlanHeading = 90;
+          pointing = normalizePointing(pointing+1);
+          pathPlanForward = 250;
+          curGridCol = curGridCol+1;
+          curGridRow = curGridRow;
+          }
+          //TRAPPED
+          
+          else {
+            let countSpotTersedia = 0;
+            for(let col=0; col<dataGrid.length; col++){
+              for(let row=0; row<dataGrid[0].length; row++){
+                if(dataGrid[col][row] == 1){
+                  countSpotTersedia += 1;
+                }
+              }
+            }
+            if (countSpotTersedia == 0){
+              RTH = 1;
+            } else{
+              console.log(countSpotTersedia);
+            }
+          }
+        }
+      }
+      break;
+
+    case 1:
+      // CEK DATA GRID YANG TERSEDIA
+      if (dataGrid[curGridCol][curGridRow+1] == 1){              // CEK KIRI
+        for (let i=0; i<dataGrid.length; i++){
+          dataGrid[i].push(0);
+        }
+        pathPlanHeading = -90;
+        pointing = normalizePointing(pointing-1);
+        pathPlanForward = 250;
+        curGridCol      = curGridCol;
+        curGridRow      = curGridRow+1;
+      }
+      else{
+        if (dataGrid[curGridCol][curGridRow-1] == 1){           // CEK KANAN
+          let dumpArray =[];
+          for (let i=0; i<dataGrid[0].length; i++){
+            dumpArray.push(0);
+          }
+          dataGrid.push(dumpArray);
+          pathPlanHeading = 90;
+          pointing = normalizePointing(pointing+1);
+          pathPlanForward = 250;
+          curGridCol = curGridCol;
+          curGridRow = curGridRow-1;
+        }
+        else {                                                // CEK DEPAN
+          if (dataGrid[curGridCol][curGridRow+1] == 1){
+            pathPlanHeading = 0;
+            pointing = normalizePointing(pointing);
+            pathPlanForward = 250;
+            curGridCol = curGridCol+1;
+            curGridRow = curGridRow;
+          }
+          else {
+            let countSpotTersedia = 0;
+            for(let col=0; col<dataGrid.length; col++){
+              for(let row=0; row<dataGrid[0].length; row++){
+                if(dataGrid[col][row] == 1){
+                  countSpotTersedia += 1;
+                }
+              }
+            }
+            if (countSpotTersedia == 0){
+              RTH = 1;
+            } else{
+              console.log(countSpotTersedia);
+            }
+          }
+        }
+      }
+      break;
+    case 2:
+      // CEK DATA GRID YANG TERSEDIA
+      if (dataGrid[curGridCol-1][curGridRow] == 1){              // CEK KANAN
+        for (let i=0; i<dataGrid.length; i++){
+          dataGrid[i].push(0);
+        }
+        pathPlanHeading = 90;
+        pointing = normalizePointing(pointing+1);
+        pathPlanForward = 250;
+        curGridCol      = curGridCol-1;
+        curGridRow      = curGridRow;
+      }
+      else{
+        if (dataGrid[curGridCol][curGridRow-1] == 1){           // CEK DEPAN
+          let dumpArray =[];
+          for (let i=0; i<dataGrid[0].length; i++){
+            dumpArray.push(0);
+          }
+          dataGrid.push(dumpArray);
+          pathPlanHeading = 0;
+          pointing = normalizePointing(pointing);
+          pathPlanForward = 250;
+          curGridCol = curGridCol;
+          curGridRow = curGridRow-1;
+        }
+        else {                                                // CEK KIRI
+          if(dataGrid[curGridCol+1][curGridRow] == 1){
+            pathPlanHeading = -90;
+            pointing = normalizePointing(pointing-1);
+            pathPlanForward = 250;
+            curGridCol = curGridCol+1;
+            curGridRow = curGridRow;
+          }
+          else {
+            let countSpotTersedia = 0;
+            for(let col=0; col<dataGrid.length; col++){
+              for(let row=0; row<dataGrid[0].length; row++){
+                if(dataGrid[col][row] == 1){
+                  countSpotTersedia += 1;
+                }
+              }
+            }
+            if (countSpotTersedia == 0){
+              RTH = 1;
+            } else{
+              console.log(countSpotTersedia);
+            }
+          }
+        }
+      }
+      break;
+    }
+  
   
   // LINEAR REGRESSION
   angleMode(RADIANS);
@@ -492,97 +785,53 @@ function pathPlanning(){
   // pathPlanForward = 100;
   // pathPlanHeading = Math.round(sudut);
 
-  
   console.log(jarakTerpendekDepan);
   console.log(jarakTerpendekKanan);
   console.log(jarakTerpendekKiri);
   console.log(jarakTerpendekBelakang);
 
-  // if (jarakTerpendekKiri < 200){
-  //   pathPlanHeading = Math.round(sudut);
-  //   pathPlanForward = 100;
-  // } else {
-  //   pathPlanHeading = 0;
-  //   pathPlanForward = 100;
-  // }
-
-  if (RTH == 0){
-    if (firstTimeAlignment == 1){
-      if (sudut < 10){
-        pathPlanHeading = 0;
-        pathPlanForward = 0;
-        firstTimeAlignment = 0;
-      }
-      else {
-        pathPlanHeading = Math.round(sudut);
-        pathPlanForward = 0;
-        firstTimeAlignment = 0;
-      }
-    }
-    else {
-      if (forwardState == 0){
-        if (uTurnRight == 0){
-          if (jarakTerpendekDepan < 350){
-            pathPlanHeading = 90;
-            pathPlanForward = 250;
-            uTurnRight = 1;
-          }
-          else {
-            pathPlanHeading = 0;
-            pathPlanForward = 250;
-          }
-        }
-        else {
-          pathPlanHeading = 90;
-          pathPlanForward = 250;
-          uTurnRight = 0;
-          forwardState = 1;
-        }
-      }
-      else {
-        if (uTurnLeft == 0){
-          if (jarakTerpendekDepan < 350){
-            pathPlanHeading = -90;
-            pathPlanForward = 250;
-            uTurnLeft = 1;
-          }
-          else {
-            pathPlanHeading = 0;
-            pathPlanForward = 250;
-          }
-        }
-        else {
-          pathPlanHeading = -90;
-          pathPlanForward = 250;
-          uTurnLeft = 0;
-          forwardState = 0;
-        }
-      } 
-    }
+  // BATT PERSENTAGE <40% ABORT ALL PLAN. RTH IMMEDIATELY
+  // let lastBattPers = dataMap.gas.battPers[lastDataSensor][2];
+  let lastDataSensor = dataMap.gas.battVolt.length-1;
+  let lastBattPers = dataMap.gas.battPers[lastDataSensor][2];
+  if (lastBattPers <= 40){
+    RTH = 1;
   }
-
-  else {
+  if (RTH == 1){
     let x = lastRobotCorX;
-    let y = lastRobotCorY;
-    let path = sqrt(pow(x,2)+ pow(y,2));
-    let angle = Math.round((asin(y/path))*180/Math.PI);
-    pathPlanForward = Math.round(path);
-    switch (lastRobotCorH){
-      case (lastRobotCorH >=0 && lastRobotCorH<=89) :
-        pathPlanHeading = 90 + lastRobotCorH +angle;
-        break;
-      case (lastRobotCorH >=90 && lastRobotCorH<=179) :
-        pathPlanHeading = 90 + lastRobotCorH +angle;
-        break;
-      case (lastRobotCorH >=180 && lastRobotCorH<=269) :
-        pathPlanHeading =  270 - lastRobotCorH+ angle;
-        break;
-      case (lastRobotCorH >=270 && lastRobotCorH<=359) :
-      pathPlanHeading = -(270 - lastRobotCorH + angle);
-      break;
-    }
+      let y = lastRobotCorY;
+      if (x == 0){
+        pathPlanHeading = 180;
+        pathPlanForward = y;
+      } else{
+        let path = sqrt(pow(x,2)+ pow(y,2));
+        let angle = Math.round((asin(x/path))*180/Math.PI);
+        let targetHeading = calculateAngleRemaining(180 + angle);
+        
+        pathPlanForward = Math.round(path);
+        pathPlanHeading = targetHeading;
+        console.log(pathPlanHeading);
+      }
   }
   sequence("pathplanningcomplete");
+}
+
+function calculateAngleRemaining(mpu_target){
+  let lastRobotCor = dataMap.robotCor.length-1;
+  let lastRobotCorH = dataMap.robotCor[lastRobotCor][2];
+  // RUMUS UTAMA
+  let angle_remaining = mpu_target - lastRobotCorH;
+  // Serial.println(angle_remaining);
+  if (angle_remaining > 180){
+    angle_remaining = angle_remaining - 360;
+  }
+  else if (angle_remaining < -180){
+    angle_remaining = angle_remaining + 360;
+  }
+  else {
+    angle_remaining = angle_remaining;
+  }
+  return angle_remaining;
 }
 
 function startAuto(){
@@ -670,11 +919,11 @@ function draw() {
 
   let lastDataSensor = dataMap.gas.battVolt.length-1;
   let lastBattVolt = dataMap.gas.battVolt[lastDataSensor][2];
-  let lastBattPers = dataMap.gas.battPers[lastDataSensor][2];;
+  let lastBattPers = dataMap.gas.battPers[lastDataSensor][2];
 
   //value scale to map
-  var robotCorX = (lastRobotCorX*scale) + 70;
-  var robotCorY = -(lastRobotCorY*scale) + 500;
+  let robotCorX = (lastRobotCorX*scale) + mapOffsetX;
+  let robotCorY = -(lastRobotCorY*scale) + mapOffsetY;
 
   fill(0);
   textSize(14);
@@ -743,48 +992,6 @@ function draw() {
     stroke(255);
     strokeWeight(1);
     line(dataMap.gas.voc[i][0] + 5, dataMap.gas.voc[i][1] - 5, dataMap.gas.voc[i][0] + 30, dataMap.gas.voc[i][1] - 30);
-  }
-
-  // LINE LINEAR
-  if (lineLinear.length!=0){
-    // text("sajkdhf",500,500);
-    // arraylength = lineLinear[0].length - 2;
-    // let x1 = lineLinear[0][0];
-    // let y1 = lineLinear[1][0];
-    // let x2 = lineLinear[0][arraylength];
-    // let y2 = lineLinear[1][arraylength];
-
-    //y = x * m + b
-    let m = lineLinear[0];
-    let b = lineLinear[1];
-    strokeWeight(1);
-    stroke(255,0,0);
-    line((robotCorY-b)/m, robotCorY, (robotCorY-b-100)/m, robotCorY-100);      // sisi miring
-    line((robotCorY-b)/m, robotCorY, (robotCorY-b)/m, robotCorY-100);          // sisi samping  Y
-    line((robotCorY-b)/m, robotCorY-100, (robotCorY-b-100)/m, robotCorY-100);  // sisi depan    X
-
-    //PYTHAGORAS
-    //miring = sqrt(pow(x,2)+pow(y,2))
-    let samping = -(robotCorY-100-robotCorY);
-    let depan   = -((robotCorY-b)/m - (robotCorY-b-100)/m);
-    let miring  = sqrt(pow(samping,2)+pow(depan,2))
-    text ("samping " +samping, 400,400);
-    text ("depan "+depan, 400,300);
-    text ("miring " +miring,400,250);
-
-    //TRIGONOMETRY
-    //SIN (angle) = depan / miring
-    let sudut = asin(depan/miring);
-    text ("sudut " +sudut, 400, 200);
-
-    // stroke(0,255,0);
-    // strokeWeight(5);
-    // for(let i=0; i<leftX.length; i++){
-    //   point(leftX[i],leftY[i]);
-    // }
-    // for (var i=0; i<lineLinear[0].length-1; i++){
-    //   line(lineLinear[0][i], lineLinear[1][i],lineLinear[0][i+1],lineLinear[1][i+1]);
-    // }
   }
 
   // ROBOT MODEL
