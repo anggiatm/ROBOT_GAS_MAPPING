@@ -22,6 +22,7 @@ var dataMap = {
                 smoke     : [],
                 temp      : [],
                 hum       : [],
+                quality   : [],
                 battVolt  : [
                               [0,0,0]
                             ],
@@ -150,12 +151,60 @@ function onMessage(event) {
     dataMap.gas.smoke.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.smoke, 10)]);
     dataMap.gas.battVolt.push([lastRobotCorX, lastRobotCorY, parseFloat(data.gas.battVolt).toFixed(2)]);
     dataMap.gas.battPers.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.battPers, 10)]);
+    // let quality = fuzzyLogic(parseInt(data.gas.voc, 10), parseInt(data.gas.co2, 10), parseInt(data.gas.smoke, 10));
 
-    // document.getElementById("state").innerHTML = wall;
-    // wall = [];
-    // console.log(lastDataWall);
-    // console.log(lastDataWall.length);
-    // pathPlanning();
+    let obj = {
+      // crisp_input: [parseInt(data.gas.voc, 10), parseInt(data.gas.co2, 10), parseInt(data.gas.smoke, 10)],
+      crisp_input: [100,2000,100],
+      variables_input: [
+        {
+          name: "VOC",
+          setsName: ["baik", "sedang", "buruk"],
+          sets: [
+            [0,0,10,20],
+            [10,20,20,30],
+            [20,30,40,40]
+          ]
+        },
+        {
+          name: "CO2",
+          setsName: ["baik", "sedang", "buruk"],
+          sets: [
+            [0,0,400,700],
+            [400,700,700,1000],
+            [700,1000,1000,1000]
+          ]
+        },
+        {
+          name: "SMOKE",
+          setsName: ["baik", "sedang", "buruk"],
+          sets: [
+            [0,0,10,30],
+            [10,30,30,50],
+            [30,50,50,50]
+          ]
+        }
+      ],
+      variable_output: {
+        name: "QUALITY",
+        setsName: ["baik", "sedang", "buruk"],
+        sets: [
+          [0,0,25,50],
+          [25,50,50,75],
+          [50,75,100,100]
+        ]
+      },
+      inferences: [
+        [2,1,0],
+        [2,1,0],
+        [2,1,0]
+      ]
+    };
+    let fl = new FuzzyLogic();
+    console.log(fl.getResult(obj));
+
+    dataMap.gas.quality.push([lastRobotCorX, lastRobotCorY, "baik"]);
+
     sequence("readsensorcomplete");
     status("readsensorcomplete");
   }
@@ -182,7 +231,6 @@ function status(stat){
     case (stat = "ROBOT BUSSY") :
       robotStatus = "ROBOT BUSSY!";
       break;
-
     default :
     break;
   }
@@ -977,9 +1025,17 @@ function draw() {
     point(dataMap.wall[i][0], dataMap.wall[i][1]);
   }
 
-  // DRAW GAS VOC
+  // DRAW GAS
   for (var i = 0; i < dataMap.gas.voc.length; i++){
-    stroke(255,255,0);
+    if (dataMap.gas.quality[2] = "buruk"){
+      stroke(255,0,0);
+    }
+    else if (dataMap.gas.quality[2] = "sedang"){
+      stroke(255,255,0);
+    }
+    else{
+      stroke(0,255,0);
+    }
     strokeWeight(10);
     point(dataMap.gas.voc[i][0], dataMap.gas.voc[i][1]);
 
