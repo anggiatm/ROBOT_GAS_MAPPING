@@ -34,14 +34,11 @@
  * |                     |                   | STACK SIZE (byte) |           |          |                             | RUNNING |                       |
  * |    TASK FUNCTION    |     TASK NAME     |  RAM CONSUMPTION  | PARAMETER | PRIORITY |          TASK HANDLE        |   CORE  |          FILE         |
  * |_____________________|___________________|___________________|___________|__________|_____________________________|_________|_______________________|
- * | _async_service_task | "async_tcp"       |     1024*15       |   NULL    |    1     | &_async_service_task_handle |   -1    | AsyncTCP.cpp          |
+ * | _async_service_task | "async_tcp"       |     1024*16       |   NULL    |    1     | &_async_service_task_handle |   -1    | AsyncTCP.cpp          |
  * | MOTOR_R->taskRunner | "FlexyStepper"    |     1024          |   NULL*   |    1     | MOTOR_R->xHandle            |   -1    | ESP_FlexyStepper.cpp  |
  * | MOTOR_L->taskRunner | "FlexyStepper"    |     1024          |   NULL*   |    1     | MOTOR_L->xHandle            |   -1    | ESP_FlexyStepper.cpp  |
- * | task_web_client     | "WEB_CLIENT_TASK" |     1024          |   NULL    |    1     | &Client_Task_Handle);       |   -1    | main.cpp              |
- * | task_watch_command    | "MPU_RUN_TASK"    |     1024*2        |   NULL    |    1     | &ReadSensor_Task_Handle     |   -1    | main.cpp              | 
- * | task_motor          | "TASK_MOTOR"      |     1024*2        |   NULL    |    1     | &Motor_Task_Handle          |   -1    | main.cpp              | 
+ * | task_watch_command  | "MPU_RUN_TASK"    |     1024*6        |   NULL    |    1     | &watchCommand_Handle        |   -1    | main.cpp              | 
  * |_____________________|___________________|___________________|___________|__________|_____________________________|_________|_______________________|
- *                                                      
 */
 
 #include <robot.h>
@@ -49,10 +46,7 @@
 ESP_FlexyStepper MOTOR_R;
 ESP_FlexyStepper MOTOR_L;
 
-//TaskHandle_t MPU_TaskInit_Handle;
-TaskHandle_t ReadSensor_Task_Handle;
-// TaskHandle_t Client_Task_Handle;
-// TaskHandle_t Motor_Task_Handle;
+TaskHandle_t watchCommand_Handle;
 
 Servo MOTOR_SERVO;
 VL53L0X SENSOR_RANGE;
@@ -107,7 +101,6 @@ const char* password = "123456789";
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
-int Gas_analog = 34;    // used for ESP32
 DHT_Unified SENSOR_DHT(DHT11_PIN, DHTTYPE);
 
 String splitString(String data, char separator, int index){
@@ -154,7 +147,6 @@ int getAngleRaw(){
   SENSOR_MPU.dmpGetQuaternion(&q, fifoBuffer);
   SENSOR_MPU.dmpGetGravity(&gravity, &q);
   SENSOR_MPU.dmpGetYawPitchRoll(ypr, &q, &gravity);
-
   return ((-ypr[0] * 57.2958) + 180);
 }
 
@@ -182,6 +174,14 @@ int calculateAngleRemaining(int mpu_target){
     angle_remaining = angle_remaining;
   }
   return angle_remaining;
+}
+
+void enableMotor(){
+  digitalWrite(STEPPER_ENABLE_PIN, LOW);
+}
+
+void disableMotor(){
+  digitalWrite(STEPPER_ENABLE_PIN, HIGH);
 }
 
 void setZeroStepPosition(){
@@ -275,7 +275,7 @@ void scan(){
   gas["voc"] = SENSOR_VOC.TVOC;
   gas["co2"] = SENSOR_VOC.CO2;
   //measure smoke
-  gas["smoke"] = analogRead(Gas_analog);
+  gas["smoke"] = analogRead(SMOKE_SENSOR);
   //measure battery level
   gas["battVolt"] = SENSOR_BATTERY.getBatteryVoltage();
   gas["battPers"] = SENSOR_BATTERY.getBatteryPercentage();
@@ -284,24 +284,6 @@ void scan(){
   MOTOR_SERVO.write(SERVO_NEUTRAL);
   buffer_len = serializeJson(root, buffer);  // serialize to buffer
 }
-
-// void task_motor(void *param){
-//   (void) param;
-//   vTaskDelay(200);
-//   while (1){
-//     vTaskDelay(100);
-//     if (set_heading_running > 0){
-//       setHeading(val_heading);
-//       set_heading_running = 0;
-//     }
-//     if (set_forward_running > 0){
-//       forward(val_forward);
-//       set_forward_running = 0 ;
-//       ws.textAll("setforwardcomplete");
-//     }
-//   }
-// }
-
 
 void task_watch_command(void *pvParameters){
   (void) pvParameters;
@@ -533,6 +515,10 @@ void setup(){
     request->send(SPIFFS, "/p5.min.js");
   });
 
+  server.on("/fuzzy-min.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/fuzzy-min.js");
+  });
+
   server.on("/app.js", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/app.js");
   });
@@ -540,13 +526,9 @@ void setup(){
   MOTOR_R.startAsService(-1);
   MOTOR_L.startAsService(-1);      
 
-  xTaskCreateUniversal(task_watch_command, "READ_SENSOR_TASK", 1024*6, NULL, 1, &ReadSensor_Task_Handle, -1);
+  xTaskCreateUniversal(task_watch_command, "WATCH_COMMAND_TASK", 1024*6, NULL, 1, &watchCommand_Handle, -1);
   server.begin();
-  // xTaskCreateUniversal(task_web_client, "WEB_CLIENT_TASK", 1024, NULL, 1, &Client_Task_Handle, -1);
-  // xTaskCreateUniversal(task_motor, "TASK_MOTOR", 1024*2, NULL,1, &Motor_Task_Handle, -1);
-  //digitalWrite(ledPin, HIGH);
   
-  // dmpReady = true;
   MOTOR_R.suspendService();
   MOTOR_L.suspendService();
   // digitalWrite(LED_R, HIGH);
@@ -576,7 +558,7 @@ void loop() {
   // Serial.print(SENSOR_VOC.TVOC);
   // Serial.println(" ppb");
 
-  // int gassensorAnalog = analogRead(Gas_analog);
+  // int gassensorAnalog = analogRead(SMOKE_SENSOR);
   // Serial.println(gassensorAnalog);
 
   // int battVolt = analogRead(SENSOR_BATTERY);

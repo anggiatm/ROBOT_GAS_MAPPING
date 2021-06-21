@@ -1117,6 +1117,4 @@ function draw() {
       }
     }
   }
-  // console.log("MODE : " + mode + " WAIT : " + waiting);
 }
-

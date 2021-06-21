@@ -31,7 +31,7 @@ battery::battery(/* args */)
 }
 
 int battery::getBatteryAdc(){
-    return analogRead(SENSOR_BATTERY);
+    return analogRead(SENSOR_BATTERY_PIN);
 }
 
 float battery::convertAdcToVoltage(int adc){
