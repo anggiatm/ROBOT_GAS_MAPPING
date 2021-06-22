@@ -44,15 +44,6 @@ let mapOffsetX = 150;
 let mapOffsetY = 450;
 
 let lastDataWall =[];
-let frontLong = [];
-let rightLong = [];
-let leftLong  = [];
-let backLong  = [];
-
-let frontShort = [];
-let rightShort = [];
-let leftShort  = [];
-let backShort  = [];
 
 let firstTimeAlignment;
 let RTH = 0;
@@ -65,6 +56,7 @@ let leftY = [];
 
 let pathPlanHeading;
 let pathPlanForward;
+let missionArray = [];
 
 let inputForward;
 let inputHeading;
@@ -450,7 +442,7 @@ function findLineByLeastSquares(valuesX, valuesY) {
   return [m,b];
 }
 
-function updateDataGrid(kanan, kiri, depan, belakang, p){
+function updateDataGrid(kanan, kiri, depan, belakang, depanKanan, depanKiri, belakangKanan, belakangKiri, p){
   // 0 = tidak tau
   // 1 = belum di scan
   // 2 = sudah discan
@@ -463,6 +455,10 @@ function updateDataGrid(kanan, kiri, depan, belakang, p){
   let jarakTerpendekBelakang;
   let jarakTerpendekKanan;
   let jarakTerpendekKiri;
+  let jarakTerpendekDepanKanan;
+  let jarakTerpendekDepanKiri;
+  let jarakTerpendekBelakangKanan;
+  let jarakTerpendekBelakangKiri;
 
   //pointing
   // 0 = 0 derajat
@@ -472,34 +468,53 @@ function updateDataGrid(kanan, kiri, depan, belakang, p){
 
   switch (p){
     case 0 :
-      jarakTerpendekDepan     = depan;
-      jarakTerpendekBelakang  = belakang;
-      jarakTerpendekKanan     = kanan;
-      jarakTerpendekKiri      = kiri;
+      jarakTerpendekDepan         = depan;
+      jarakTerpendekBelakang      = belakang;
+      jarakTerpendekKanan         = kanan;
+      jarakTerpendekKiri          = kiri;
+      jarakTerpendekDepanKanan    = depanKanan;
+      jarakTerpendekDepanKiri     = depanKiri;
+      jarakTerpendekBelakangKanan = belakangKanan;
+      jarakTerpendekBelakangKiri  = belakangKiri;
       break;
     case 1 :
       jarakTerpendekDepan     = kiri;
       jarakTerpendekBelakang  = kanan;
       jarakTerpendekKanan     = depan;
       jarakTerpendekKiri      = belakang;
+
+      jarakTerpendekDepanKanan    = belakangKanan;
+      jarakTerpendekDepanKiri     = depanKanan;
+      jarakTerpendekBelakangKanan = belakangKiri;
+      jarakTerpendekBelakangKiri  = depanKiri;
       break;
     case 2 :
       jarakTerpendekDepan     = belakang;
       jarakTerpendekBelakang  = depan;
       jarakTerpendekKanan     = kiri;
       jarakTerpendekKiri      = kanan;
+
+      jarakTerpendekDepanKanan    = belakangKiri;
+      jarakTerpendekDepanKiri     = belakangKanan;
+      jarakTerpendekBelakangKanan = depanKiri
+      jarakTerpendekBelakangKiri  = depanKanan;
       break;
     case 3 :
       jarakTerpendekDepan     = kanan;
       jarakTerpendekBelakang  = kiri;
       jarakTerpendekKanan     = belakang;
       jarakTerpendekKiri      = depan;
+
+      jarakTerpendekDepanKanan    = depanKiri;
+      jarakTerpendekDepanKiri     = belakangKiri;
+      jarakTerpendekBelakangKanan = depanKanan;
+      jarakTerpendekBelakangKiri  = belakangKanan;
       break;
   }
 
   // DATA GRID
   // CEK DATA GRID DEPAN
-  if (jarakTerpendekDepan < 400){                                                 // terdeteksi tembok
+  if (jarakTerpendekDepan < 400 || jarakTerpendekDepanKanan < 220 || jarakTerpendekDepanKiri < 220){                                                 // terdeteksi tembok
     dataGrid[curGridCol][curGridRow+1] = 8;
   } else{                                                                         // bukan tembok
     if (dataGrid[curGridCol][curGridRow+1] === 2){                                 // jika sudah discan -> 
@@ -557,6 +572,27 @@ function normalizePointing(p){
   return p;
 }
 
+function missionPath(){
+  let curGridCol = curGridCol;
+  let curGridRow = curGridRow;
+  switch (pointing){
+    case 0:
+      break;
+    case 1:
+      break;
+    case 2:
+      break;
+    case 3:
+      break;
+  }
+
+  // outuput array path plan forward dan path plan heading
+  // berdasarkan berapa column dan berapa row
+  // dipikirkan prioritas collumn dulu atau row dulu
+  // LIEUR LAH BANGSRIT
+  // HARI INI SAMPE SINI DULU LAH ANJI..
+}
+
 function pathPlanning(){
   let lastRobotCor = dataMap.robotCor.length-1;
   let lastRobotCorX = dataMap.robotCor[lastRobotCor][0];
@@ -567,14 +603,28 @@ function pathPlanning(){
   let robotCorX = (lastRobotCorX*scale) + mapOffsetX;
   let robotCorY = -(lastRobotCorY*scale) + mapOffsetY;
 
+  let frontLong = [];
+  let rightLong = [];
+  let leftLong  = [];
+  let backLong  = [];
+
+  let frontShort      = [];
+  let frontLeftShort  = [];
+  let frontRightShort = [];
+  let rightShort      = [];
+  let leftShort       = [];
+  let backShort       = [];
+  let backRightShort  = [];
+  let backLeftShort   = [];
+
   let jarakTerpendekDepan;
-  let jarakPerbandinganDepan;
+  let jarakTerpendekDepanKanan;
+  let jarakTerpendekDepanKiri;
   let jarakTerpendekKanan;
-  let jarakPerbandinganKanan;
   let jarakTerpendekKiri;
-  let jarakPerbandinganKiri;
   let jarakTerpendekBelakang;
-  let jarakPerbandinganBelakang;
+  let jarakTerpendekBelakangKanan;
+  let jarakTerpendekBelakangKiri;
 
   let deadBandLong  = 30;
   let deadBandShort = 10;
@@ -587,48 +637,28 @@ function pathPlanning(){
   }
 
   for (let i = -deadBandShort; i<=deadBandShort; i++){
-    frontShort[i+deadBandShort] = lastDataWall[normalizeAngle(lastRobotCorH+180+i)];
-    rightShort[i+deadBandShort] = lastDataWall[normalizeAngle(lastRobotCorH+270+i)];
-    leftShort[i+deadBandShort] = lastDataWall[normalizeAngle(lastRobotCorH+90+i)];
-    backShort[i+deadBandShort] = lastDataWall[normalizeAngle(lastRobotCorH+i)];
+    frontShort[i+deadBandShort]      = lastDataWall[normalizeAngle(lastRobotCorH+180+i)];
+    frontLeftShort[i+deadBandShort]  = lastDataWall[normalizeAngle(lastRobotCorH+135+i)];
+    frontRightShort[i+deadBandShort] = lastDataWall[normalizeAngle(lastRobotCorH+225+i)];
+    rightShort[i+deadBandShort]      = lastDataWall[normalizeAngle(lastRobotCorH+270+i)];
+    leftShort[i+deadBandShort]       = lastDataWall[normalizeAngle(lastRobotCorH+90+i)];
+    backShort[i+deadBandShort]       = lastDataWall[normalizeAngle(lastRobotCorH+i)];
+    backRightShort[i+deadBandShort]  = lastDataWall[normalizeAngle(lastRobotCorH+315+i)];
+    backLeftShort[i+deadBandShort]   = lastDataWall[normalizeAngle(lastRobotCorH+45+i)];
   }
 
-  //KALKULASI JARAK TERPENDEK DEPAN
-  for(let i=0; i<frontShort.length; i++){
-    jarakTerpendekDepan = frontShort[i];
-    jarakPerbandinganDepan = frontShort[i+1];
-    if(jarakPerbandinganDepan < jarakTerpendekDepan){
-      jarakTerpendekDepan = jarakPerbandinganDepan;
-    }
-  }
+  
+  jarakTerpendekDepan         = Math.min.apply(Math, frontShort);                              // KALKULASI JARAK TERPENDEK DEPAN
+  jarakTerpendekDepanKanan    = Math.min.apply(Math, frontRightShort);                         // KALKULASI JARAK TERPENDEK DEPAN KANAN
+  jarakTerpendekDepanKiri     = Math.min.apply(Math, frontLeftShort);                          // KALKULASI JARAK TERPENDEK DEPAN KIRI
+  jarakTerpendekKanan         = Math.min.apply(Math, rightShort);                              // KALKULASI JARAK TERPENDEK KANAN
+  jarakTerpendekKiri          = Math.min.apply(Math, leftShort);                               // KALKULASI JARAK TERPENDEK KIRI
+  jarakTerpendekBelakang      = Math.min.apply(Math, backShort);                               // KALKULASI JARAK TERPENDEK BELAKANG
+  jarakTerpendekBelakangKanan = Math.min.apply(Math, backRightShort);                               // KALKULASI JARAK TERPENDEK BELAKANG KANAN
+  jarakTerpendekBelakangKiri  = Math.min.apply(Math, backLeftShort);                               // KALKULASI JARAK TERPENDEK BELAKANG KIRI
 
-  //KALKULASI JARAK TERPENDEK KANAN
-  for(let i=0; i<rightShort.length; i++){
-    jarakTerpendekKanan = rightShort[i];
-    jarakPerbandinganKanan = rightShort[i+1];
-    if(jarakPerbandinganKanan < jarakTerpendekKanan){
-      jarakTerpendekKanan = jarakPerbandinganKanan;
-    }
-  }
-
-  //KALKULASI JARAK TERPENDEK KIRI
-  for(let i=0; i<leftShort.length; i++){
-    jarakTerpendekKiri = leftShort[i];
-    jarakPerbandinganKiri = leftShort[i+1];
-    if(jarakPerbandinganKiri < jarakTerpendekKiri){
-      jarakTerpendekKiri = jarakPerbandinganKiri;
-    }
-  }
-
-  //KALKULASI JARAK TERPENDEK BELAKANG
-  for(let i=0; i<backShort.length; i++){
-    jarakTerpendekBelakang = backShort[i];
-    jarakPerbandinganBelakang = backShort[i+1];
-    if(jarakPerbandinganBelakang < jarakTerpendekBelakang){
-      jarakTerpendekBelakang = jarakPerbandinganBelakang;
-    }
-  }
-  updateDataGrid(jarakTerpendekKanan, jarakTerpendekKiri, jarakTerpendekDepan, jarakTerpendekBelakang, pointing);
+  updateDataGrid(jarakTerpendekKanan, jarakTerpendekKiri, jarakTerpendekDepan, jarakTerpendekBelakang,
+    jarakTerpendekDepanKanan, jarakTerpendekDepanKiri, jarakTerpendekBelakangKanan, jarakTerpendekBelakangKiri, pointing);
   
   console.log(dataGrid);
 
@@ -794,6 +824,58 @@ function pathPlanning(){
         }
       }
       break;
+      case 3:
+        // CEK DATA GRID YANG TERSEDIA
+      if (dataGrid[curGridCol-1][curGridRow] === 1){              // CEK DEPAN
+        for (let i=0; i<dataGrid.length; i++){
+          dataGrid[i].push(0);
+        }
+        pathPlanHeading = 0;
+        pointing = normalizePointing(pointing);
+        pathPlanForward = 250;
+        curGridCol      = curGridCol-1;
+        curGridRow      = curGridRow;
+      }
+      else{
+        if (dataGrid[curGridCol][curGridRow+1] === 1){           // CEK KANAN
+          let dumpArray =[];
+          for (let i=0; i<dataGrid[0].length; i++){
+            dumpArray.push(0);
+          }
+          dataGrid.push(dumpArray);
+          pathPlanHeading = 90;
+          pointing = normalizePointing(pointing+1);
+          pathPlanForward = 250;
+          curGridCol = curGridCol;
+          curGridRow = curGridRow+1;
+        }
+        else {                                                // CEK KIRI
+          if(dataGrid[curGridCol][curGridRow-1] === 1){
+            pathPlanHeading = -90;
+            pointing = normalizePointing(pointing-1);
+            pathPlanForward = 250;
+            curGridCol = curGridCol;
+            curGridRow = curGridRow-1;
+          }
+          else {
+            let countSpotTersedia = 0;
+            for(let col=0; col<dataGrid.length; col++){
+              for(let row=0; row<dataGrid[0].length; row++){
+                if(dataGrid[col][row] === 1){
+                  countSpotTersedia += 1;
+                }
+              }
+            }
+            if (countSpotTersedia === 0){
+              RTH = 1;
+            } else{
+              console.log(countSpotTersedia);
+            }
+          }
+        }
+      }
+      break;
+
     }
   
   
@@ -1083,7 +1165,7 @@ function draw() {
       console.log("PATH PLANNING");
       pathPlanning();
     }
-    
+
     //FORWARD 
     if (seqPathPlanning === 1){
       waiting=1;
