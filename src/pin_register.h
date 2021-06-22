@@ -16,7 +16,7 @@
 
 #define DHT11_PIN           35
 #define SMOKE_SENSOR        34    // used for ESP32
-#define SENSOR_BATTERY_PIN  10
+#define SENSOR_BATTERY_PIN  39
 
 #define LED_R               15
 #define LED_G               2
