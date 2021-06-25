@@ -22,7 +22,7 @@
 *       (1000 + 3000)
 * 
 *--------------- MAX ADC VALUE -----------------
-*  3.15 = 3909
+*   4095
 *                                                    
 **************************************************/
 
@@ -35,7 +35,7 @@ int battery::getBatteryAdc(){
 }
 
 float battery::convertAdcToVoltage(int adc){
-    return ((adc * 3.15)/3909 *4);
+    return ((adc * 3.15)/4095 *4);
 }
 
 float battery::getBatteryVoltage(){

@@ -11,12 +11,15 @@
 #include <VL53L0X.h>
 #include <ESP32Servo.h>
 #include <ArduinoJson.h>
-#include "SparkFun_SGP30_Arduino_Library.h"
+// #include "SparkFun_SGP30_Arduino_Library.h"
+#include <Adafruit_SGP30.h>
+#include <MQUnifiedsensor.h>
 #include <battery.h>
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
 #include <DHT_U.h>
 #include <pin_register.h>
+#include <SimpleDHT.h>
 
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     #include "Wire.h"

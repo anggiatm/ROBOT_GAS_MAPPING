@@ -7,7 +7,9 @@ var connectionStatus = "connecting....";
 let robotStatus = "";
 let robotMode ="Manual";
 
-var dataMap = {
+let importedDataMap;
+
+let dataMap = {
   robotCor  : [
                 [0,0,0]
               ],                // [X, Y, H]
@@ -64,6 +66,9 @@ let buttonForward;
 let buttonHeading;
 let buttonReadSensor;
 let buttonCalibrateMpu;
+let buttonExportMap;
+
+let buttonImportMap;
 
 let buttonDownloadMap;
 let radioAutoManual;
@@ -81,8 +86,11 @@ let seqPathPlanning = 0;
 let seqForward = 0;
 let seqHeading = 0;
 
+let toggleBrake = 0;
+
 let waiting = 0;
-let cycle = 0; 
+let cycle = 0;
+let pathCount = 0;
 
 window.addEventListener("load", onLoad);
 
@@ -114,22 +122,22 @@ function onClose(event) {
 }
 
 function onMessage(event) {
-  var lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
-  var lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
+  let lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
+  let lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
   lastRobotCorX = (scale*lastRobotCorX) + mapOffsetX;
   lastRobotCorY = -(scale*lastRobotCorY) + mapOffsetY;
   // console.log(event.data);
   if(event.data.length > 50){
-    var data = JSON.parse(event.data);
+    let data = JSON.parse(event.data);
     angleMode(RADIANS);
-    for (var i=0; i<data.wall.length; i++){
-      var a = i - 180;
+    for (let i=0; i<data.wall.length; i++){
+      let a = i - 180;
       a = -a + 180;
       a = (a * 0.0174533);
-      var num = parseInt(data.wall[i], 10);
+      let num = parseInt(data.wall[i], 10);
       if (num){
-        var x = ((sin(a) * num * scale) + lastRobotCorX);
-        var y = ((cos(a) * num * scale) + lastRobotCorY);
+        let x = ((sin(a) * num * scale) + lastRobotCorX);
+        let y = ((cos(a) * num * scale) + lastRobotCorY);
         if (num <=450){
           dataMap.wall.push([x, y]);
         }
@@ -141,14 +149,13 @@ function onMessage(event) {
     }
     dataMap.gas.voc.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.voc, 10)]);
     dataMap.gas.co2.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.co2, 10)]);
-    dataMap.gas.smoke.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.smoke, 10)]);
+    dataMap.gas.smoke.push([lastRobotCorX, lastRobotCorY, parseFloat(data.gas.smoke).toFixed(2)]);
     dataMap.gas.battVolt.push([lastRobotCorX, lastRobotCorY, parseFloat(data.gas.battVolt).toFixed(2)]);
     dataMap.gas.battPers.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.battPers, 10)]);
-    // let quality = fuzzyLogic(parseInt(data.gas.voc, 10), parseInt(data.gas.co2, 10), parseInt(data.gas.smoke, 10));
 
     let obj = {
       // crisp_input: [parseInt(data.gas.voc, 10), parseInt(data.gas.co2, 10), parseInt(data.gas.smoke, 10)],
-      crisp_input: [100,2000,100],
+      crisp_input: [parseInt(data.gas.voc, 10),parseInt(data.gas.co2),parseFloat(data.gas.smoke).toFixed(2)],
       variables_input: [
         {
           name: "VOC",
@@ -206,6 +213,7 @@ function onMessage(event) {
     }
 
     dataMap.gas.quality.push([lastRobotCorX, lastRobotCorY, q]);
+    // pathPlanning();
 
     sequence("readsensorcomplete");
     status("readsensorcomplete");
@@ -326,15 +334,11 @@ function normalizeAngle(a){
 }
 
 function calibrateMpu(){
-  // if (mode == 0){
-    var lastRobotCorH = dataMap.robotCor[dataMap.robotCor.length-1][2];
-    var angleCorrection = lastRobotCorH + 180;
-    angleCorrection = normalizeAngle(angleCorrection);
-    websocket.send("calibratempu=" + angleCorrection);
-    robotStatus = "Calibrating MPU!";
-  // } else{
-  //   alert("SEDANG MODE AUTO");
-  // }
+  let lastRobotCorH = dataMap.robotCor[dataMap.robotCor.length-1][2];
+  let angleCorrection = lastRobotCorH + 180;
+  angleCorrection = normalizeAngle(angleCorrection);
+  websocket.send("calibratempu=" + angleCorrection);
+  robotStatus = "Calibrating MPU!";
 }
 
 function readSensor(){
@@ -354,9 +358,9 @@ function setHeading(value){
   if (value !== ""){
     websocket.send("setheading=" + value);
     robotStatus = "Set Heading Running!";
-    var lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
-    var lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
-    var lastRobotCorH = dataMap.robotCor[dataMap.robotCor.length-1][2];
+    let lastRobotCorX = dataMap.robotCor[dataMap.robotCor.length-1][0];
+    let lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
+    let lastRobotCorH = dataMap.robotCor[dataMap.robotCor.length-1][2];
 
     lastRobotCorH = lastRobotCorH + parseInt(value, 10);
     lastRobotCorH = normalizeAngle(lastRobotCorH);
@@ -387,6 +391,16 @@ function setForward(value){
   else{
     console.log("input forward kosong");
   }
+}
+
+function enableBrake(){
+  console.log("ENABLE BRAKE");
+  websocket.send("enablebrake");
+}
+
+function disableBrake(){
+  console.log("DISABLE BRAKE");
+  websocket.send("disablebrake");
 }
 
 function findLineByLeastSquares(valuesX, valuesY) {
@@ -514,7 +528,7 @@ function updateDataGrid(kanan, kiri, depan, belakang, depanKanan, depanKiri, bel
 
   // DATA GRID
   // CEK DATA GRID DEPAN
-  if (jarakTerpendekDepan < 400 || jarakTerpendekDepanKanan < 220 || jarakTerpendekDepanKiri < 220){                                                 // terdeteksi tembok
+  if (jarakTerpendekDepan < 400){                                                 // terdeteksi tembok
     dataGrid[curGridCol][curGridRow+1] = 8;
   } else{                                                                         // bukan tembok
     if (dataGrid[curGridCol][curGridRow+1] === 2){                                 // jika sudah discan -> 
@@ -572,25 +586,80 @@ function normalizePointing(p){
   return p;
 }
 
-function missionPath(){
-  let curGridCol = curGridCol;
-  let curGridRow = curGridRow;
-  switch (pointing){
-    case 0:
-      break;
-    case 1:
-      break;
-    case 2:
-      break;
-    case 3:
-      break;
+function toTargetPointing(p){
+  return (p - pointing);
+}
+
+function missionPath(targetCol, targetRow){
+
+  let colIncrement = targetCol - curGridCol;
+  let rowIncrement = targetRow - curGridRow;
+  let p;
+  let belok = 0;
+  let maju = 0;
+  missionArray = [];
+
+  if (colIncrement < 0){
+    p = toTargetPointing(3);
+    pointing = 3;
+    belok = p * 90;
+    maju = Math.abs(colIncrement * 250);
+    missionArray.push([belok, maju]);
+  }
+  else if (colIncrement > 0){
+    p = toTargetPointing(1);
+    pointing = 1;
+    belok = p * 90;
+    maju = Math.abs(colIncrement * 250);
+    missionArray.push([belok, maju]);
+  }
+  else{
+    if (rowIncrement > 0){
+      p = toTargetPointing(0);
+      pointing = 0;
+      belok = p * 90;
+      maju = Math.abs(rowIncrement * 250);
+      missionArray.push([belok, maju]);
+    }
+    else if (rowIncrement < 0){
+      p = toTargetPointing(2);
+      pointing =2;
+      belok = p * 90;
+      maju = Math.abs(rowIncrement * 250);
+      missionArray.push([belok, maju]);
+    }
+    else{
+      missionArray.push([0,0]);
+    }
   }
 
-  // outuput array path plan forward dan path plan heading
-  // berdasarkan berapa column dan berapa row
-  // dipikirkan prioritas collumn dulu atau row dulu
-  // LIEUR LAH BANGSRIT
-  // HARI INI SAMPE SINI DULU LAH ANJI..
+  curGridCol = targetCol;
+  curGridRow = targetRow;
+  console.log(missionArray);
+  console.log("current col "+curGridCol);
+  console.log("current row "+curGridRow);
+}
+
+function addCol(){
+  let dumpArray =[];
+  for (let i=0; i<dataGrid[0].length; i++){
+    dumpArray.push(0);
+  }
+  dataGrid.push(dumpArray);
+}
+
+function addRow(){
+  for (let i=0; i<dataGrid.length; i++){
+    dataGrid[i].push(0);
+  }
+}
+
+function shiftCol(){
+
+}
+
+function shiftRow(){
+
 }
 
 function pathPlanning(){
@@ -637,16 +706,40 @@ function pathPlanning(){
   }
 
   for (let i = -deadBandShort; i<=deadBandShort; i++){
-    frontShort[i+deadBandShort]      = lastDataWall[normalizeAngle(lastRobotCorH+180+i)];
-    frontLeftShort[i+deadBandShort]  = lastDataWall[normalizeAngle(lastRobotCorH+135+i)];
-    frontRightShort[i+deadBandShort] = lastDataWall[normalizeAngle(lastRobotCorH+225+i)];
-    rightShort[i+deadBandShort]      = lastDataWall[normalizeAngle(lastRobotCorH+270+i)];
-    leftShort[i+deadBandShort]       = lastDataWall[normalizeAngle(lastRobotCorH+90+i)];
-    backShort[i+deadBandShort]       = lastDataWall[normalizeAngle(lastRobotCorH+i)];
-    backRightShort[i+deadBandShort]  = lastDataWall[normalizeAngle(lastRobotCorH+315+i)];
-    backLeftShort[i+deadBandShort]   = lastDataWall[normalizeAngle(lastRobotCorH+45+i)];
+    let f   = lastDataWall[normalizeAngle(lastRobotCorH+180+i)];
+    let l   = lastDataWall[normalizeAngle(lastRobotCorH+90+i)];
+    let r   = lastDataWall[normalizeAngle(lastRobotCorH+270+i)];
+    let b   = lastDataWall[normalizeAngle(lastRobotCorH+i)];
+    let fl  = lastDataWall[normalizeAngle(lastRobotCorH+135+i)];
+    let fr  = lastDataWall[normalizeAngle(lastRobotCorH+225+i)];
+    let br  = lastDataWall[normalizeAngle(lastRobotCorH+315+i)];
+    let bl  = lastDataWall[normalizeAngle(lastRobotCorH+45+i)];
+    
+    if (f){
+      frontShort     .push(f);
+    }
+    if (l){
+      leftShort     .push(l);
+    }
+    if (r){
+      rightShort     .push(r);
+    }
+    if (b){
+      backShort     .push(b);
+    }
+    if (fl){
+      frontLeftShort     .push(fl);
+    }
+    if (fr){
+      frontRightShort     .push(fr);
+    }
+    if (br){
+      backRightShort     .push(br);
+    }
+    if (bl){
+      backLeftShort     .push(bl);
+    }
   }
-
   
   jarakTerpendekDepan         = Math.min.apply(Math, frontShort);                              // KALKULASI JARAK TERPENDEK DEPAN
   jarakTerpendekDepanKanan    = Math.min.apply(Math, frontRightShort);                         // KALKULASI JARAK TERPENDEK DEPAN KANAN
@@ -654,55 +747,41 @@ function pathPlanning(){
   jarakTerpendekKanan         = Math.min.apply(Math, rightShort);                              // KALKULASI JARAK TERPENDEK KANAN
   jarakTerpendekKiri          = Math.min.apply(Math, leftShort);                               // KALKULASI JARAK TERPENDEK KIRI
   jarakTerpendekBelakang      = Math.min.apply(Math, backShort);                               // KALKULASI JARAK TERPENDEK BELAKANG
-  jarakTerpendekBelakangKanan = Math.min.apply(Math, backRightShort);                               // KALKULASI JARAK TERPENDEK BELAKANG KANAN
-  jarakTerpendekBelakangKiri  = Math.min.apply(Math, backLeftShort);                               // KALKULASI JARAK TERPENDEK BELAKANG KIRI
+  jarakTerpendekBelakangKanan = Math.min.apply(Math, backRightShort);                          // KALKULASI JARAK TERPENDEK BELAKANG KANAN
+  jarakTerpendekBelakangKiri  = Math.min.apply(Math, backLeftShort);                           // KALKULASI JARAK TERPENDEK BELAKANG KIRI
 
   updateDataGrid(jarakTerpendekKanan, jarakTerpendekKiri, jarakTerpendekDepan, jarakTerpendekBelakang,
     jarakTerpendekDepanKanan, jarakTerpendekDepanKiri, jarakTerpendekBelakangKanan, jarakTerpendekBelakangKiri, pointing);
   
   console.log(dataGrid);
+  console.log(frontShort);
+  console.log(jarakTerpendekDepan);
 
   // 0 = tidak tau
   // 1 = belum di scan
   // 2 = sudah discan
-  // 8 = tembok 
+  // 8 = tembok
 
   switch (pointing){
     case 0:
-      // CEK DATA GRID YANG TERSEDIA
       if (dataGrid[curGridCol-1][curGridRow] === 1){              // CEK KIRI
-        pathPlanHeading = -90;
-        pointing = normalizePointing(pointing-1);
-        pathPlanForward = 250;
-        curGridCol      = curGridCol - 1;
-        curGridRow      = curGridRow;
+        missionPath(curGridCol-1, curGridRow);
       }
       else{
         if (dataGrid[curGridCol][curGridRow+1] === 1){           // CEK DEPAN
-          for (let i=0; i<dataGrid.length; i++){
-            dataGrid[i].push(0);
+          if ((dataGrid[0].length - curGridRow) <= 2){
+            addRow();
           }
-          pathPlanHeading = 0;
-          pointing = normalizePointing(pointing);
-          pathPlanForward = 250;
-          curGridCol = curGridCol;
-          curGridRow = curGridRow+1;
+          missionPath(curGridCol, curGridRow+1);
         }
         else {                                                // CEK KANAN
           if(dataGrid[curGridCol+1][curGridRow] === 1){
-            let dumpArray =[];
-          for (let i=0; i<dataGrid[0].length; i++){
-            dumpArray.push(0);
-          }
-          dataGrid.push(dumpArray);
-          pathPlanHeading = 90;
-          pointing = normalizePointing(pointing+1);
-          pathPlanForward = 250;
-          curGridCol = curGridCol+1;
-          curGridRow = curGridRow;
+            if ((dataGrid.length - curGridCol) <= 2){
+              addCol();
+            }
+            missionPath(curGridCol+1, curGridRow);
           }
           //TRAPPED
-          
           else {
             let countSpotTersedia = 0;
             for(let col=0; col<dataGrid.length; col++){
@@ -721,39 +800,25 @@ function pathPlanning(){
         }
       }
       break;
-
     case 1:
       // CEK DATA GRID YANG TERSEDIA
       if (dataGrid[curGridCol][curGridRow+1] === 1){              // CEK KIRI
-        for (let i=0; i<dataGrid.length; i++){
-          dataGrid[i].push(0);
+        if ((dataGrid[0].length - curGridRow) <= 2){
+          addRow();
         }
-        pathPlanHeading = -90;
-        pointing = normalizePointing(pointing-1);
-        pathPlanForward = 250;
-        curGridCol      = curGridCol;
-        curGridRow      = curGridRow+1;
+        missionPath(curGridCol, curGridRow+1);
       }
       else{
         if (dataGrid[curGridCol][curGridRow-1] === 1){           // CEK KANAN
-          let dumpArray =[];
-          for (let i=0; i<dataGrid[0].length; i++){
-            dumpArray.push(0);
+          if ((dataGrid[0].length - curGridRow) <= 2){
+            addRow();
           }
-          dataGrid.push(dumpArray);
-          pathPlanHeading = 90;
-          pointing = normalizePointing(pointing+1);
-          pathPlanForward = 250;
-          curGridCol = curGridCol;
-          curGridRow = curGridRow-1;
+          missionPath(curGridCol, curGridRow-1);
         }
         else {                                                // CEK DEPAN
-          if (dataGrid[curGridCol][curGridRow+1] === 1){
-            pathPlanHeading = 0;
-            pointing = normalizePointing(pointing);
-            pathPlanForward = 250;
-            curGridCol = curGridCol+1;
-            curGridRow = curGridRow;
+          if (dataGrid[curGridCol+1][curGridRow] === 1){
+            addCol();
+            missionPath(curGridCol+1, curGridRow);
           }
           else {
             let countSpotTersedia = 0;
@@ -776,35 +841,16 @@ function pathPlanning(){
     case 2:
       // CEK DATA GRID YANG TERSEDIA
       if (dataGrid[curGridCol-1][curGridRow] === 1){              // CEK KANAN
-        for (let i=0; i<dataGrid.length; i++){
-          dataGrid[i].push(0);
-        }
-        pathPlanHeading = 90;
-        pointing = normalizePointing(pointing+1);
-        pathPlanForward = 250;
-        curGridCol      = curGridCol-1;
-        curGridRow      = curGridRow;
+        missionPath(curGridCol-1, curGridRow);
       }
       else{
         if (dataGrid[curGridCol][curGridRow-1] === 1){           // CEK DEPAN
-          let dumpArray =[];
-          for (let i=0; i<dataGrid[0].length; i++){
-            dumpArray.push(0);
-          }
-          dataGrid.push(dumpArray);
-          pathPlanHeading = 0;
-          pointing = normalizePointing(pointing);
-          pathPlanForward = 250;
-          curGridCol = curGridCol;
-          curGridRow = curGridRow-1;
+          missionPath(curGridCol, curGridRow-1);
         }
         else {                                                // CEK KIRI
           if(dataGrid[curGridCol+1][curGridRow] === 1){
-            pathPlanHeading = -90;
-            pointing = normalizePointing(pointing-1);
-            pathPlanForward = 250;
-            curGridCol = curGridCol+1;
-            curGridRow = curGridRow;
+            addCol();
+            missionPath(curGridCol+1, curGridRow);
           }
           else {
             let countSpotTersedia = 0;
@@ -824,60 +870,11 @@ function pathPlanning(){
         }
       }
       break;
-      case 3:
-        // CEK DATA GRID YANG TERSEDIA
-      if (dataGrid[curGridCol-1][curGridRow] === 1){              // CEK DEPAN
-        for (let i=0; i<dataGrid.length; i++){
-          dataGrid[i].push(0);
-        }
-        pathPlanHeading = 0;
-        pointing = normalizePointing(pointing);
-        pathPlanForward = 250;
-        curGridCol      = curGridCol-1;
-        curGridRow      = curGridRow;
-      }
-      else{
-        if (dataGrid[curGridCol][curGridRow+1] === 1){           // CEK KANAN
-          let dumpArray =[];
-          for (let i=0; i<dataGrid[0].length; i++){
-            dumpArray.push(0);
-          }
-          dataGrid.push(dumpArray);
-          pathPlanHeading = 90;
-          pointing = normalizePointing(pointing+1);
-          pathPlanForward = 250;
-          curGridCol = curGridCol;
-          curGridRow = curGridRow+1;
-        }
-        else {                                                // CEK KIRI
-          if(dataGrid[curGridCol][curGridRow-1] === 1){
-            pathPlanHeading = -90;
-            pointing = normalizePointing(pointing-1);
-            pathPlanForward = 250;
-            curGridCol = curGridCol;
-            curGridRow = curGridRow-1;
-          }
-          else {
-            let countSpotTersedia = 0;
-            for(let col=0; col<dataGrid.length; col++){
-              for(let row=0; row<dataGrid[0].length; row++){
-                if(dataGrid[col][row] === 1){
-                  countSpotTersedia += 1;
-                }
-              }
-            }
-            if (countSpotTersedia === 0){
-              RTH = 1;
-            } else{
-              console.log(countSpotTersedia);
-            }
-          }
-        }
-      }
+    case 3:
       break;
-
-    }
+  }
   
+  console.log("pathCount " + pathCount);
   
   // LINEAR REGRESSION
   angleMode(RADIANS);
@@ -916,7 +913,7 @@ function pathPlanning(){
   // pathPlanForward = 100;
   // pathPlanHeading = Math.round(sudut);
 
-  // console.log(jarakTerpendekDepan);
+  console.log("depan " +jarakTerpendekDepan);
   // console.log(jarakTerpendekKanan);
   // console.log(jarakTerpendekKiri);
   // console.log(jarakTerpendekBelakang);
@@ -929,22 +926,22 @@ function pathPlanning(){
     RTH = 1;
   }
   if (RTH === 1){
+    missionArray = [];
     let x = lastRobotCorX;
-      let y = lastRobotCorY;
-      if (x === 0){
-        pathPlanHeading = 180;
-        pathPlanForward = y;
-      } else{
-        let path = sqrt(pow(x,2)+ pow(y,2));
-        let angle = Math.round((asin(x/path))*180/Math.PI);
-        let targetHeading = calculateAngleRemaining(180 + angle);
-        
-        pathPlanForward = Math.round(path);
-        pathPlanHeading = targetHeading;
-        console.log(pathPlanHeading);
-      }
+    
+    let y = lastRobotCorY;
+    if (x === 0){
+      missionArray.push([180,y]);
+    } else{
+      let path = sqrt(pow(x,2)+ pow(y,2));
+      let angle = Math.round((asin(x/path))*180/Math.PI);
+      let targetHeading = calculateAngleRemaining(180 + angle);
+      
+      missionArray.push([targetHeading,Math.round(path)]);
+      console.log(pathPlanHeading);
+    }
   }
-  console.log(pointing);
+  console.log("pointing " +pointing);
   sequence("pathplanningcomplete");
 }
 
@@ -983,13 +980,38 @@ function returnToHome(){
   RTH = 1;
 }
 
+function exportDataMap(){
+  let dataStr = JSON.stringify(dataMap, null, 2);
+  let dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+
+  let exportFileDefaultName = 'data.json';
+
+  let linkElement = document.createElement('a');
+  linkElement.setAttribute('href', dataUri);
+  linkElement.setAttribute('download', exportFileDefaultName);
+  linkElement.click();
+}
+
+function importDataMap(file){
+  print(file);
+  if (file.type === "application" && file.subtype === "json") {
+    importedDataMap = file.data;
+    dataMap = importedDataMap;
+    console.log(importedDataMap);
+  } else {
+    file.data = null;
+    console.log("sad");
+  }
+}
+
+
 function setup() {
   let canvas = createCanvas(windowWidth - 50, windowHeight -100);
   canvas.position(20, 70);
   frameRate(10); 
 
   let controlSpacer = displayWidth - (displayWidth/4);
-  let firstLine = 150;
+  let firstLine = 120;
   let spaceY = 30;
   
   // CONTROL
@@ -1017,12 +1039,12 @@ function setup() {
   buttonCalibrateMpu.position(controlSpacer + 120, firstLine + (3*spaceY));
   buttonCalibrateMpu.mousePressed(calibrateMpu);
 
-  radioAutoManual = createRadio();
-  radioAutoManual.option("MANUAL");
-  radioAutoManual.option("AUTO");
-  radioAutoManual.position(controlSpacer + 120, firstLine + (5*spaceY));
+  radioAutoManual = createRadio("brake");
+  radioAutoManual.option("enable brake");
+  radioAutoManual.option("disable brake");
+  radioAutoManual.position(controlSpacer + 30, firstLine + (4*spaceY));
   // radioAutoManual.mousePressed(autoManual);
-  radioAutoManual.style("width","100px");
+  radioAutoManual.style("width","300px");
 
   buttonStartAuto = createButton("START AUTO");
   buttonStartAuto.position(controlSpacer + 30, firstLine + (8*spaceY));
@@ -1035,6 +1057,13 @@ function setup() {
   buttonHoming = createButton("RETURN TO HOME");
   buttonHoming.position(controlSpacer + 60, firstLine + (9*spaceY));
   buttonHoming.mousePressed(returnToHome);
+
+  buttonExportMap = createButton("Export data Map");
+  buttonExportMap.position(controlSpacer + 30, firstLine + (12*spaceY));
+  buttonExportMap.mousePressed(exportDataMap);
+
+  buttonImportMap = createFileInput(importDataMap);
+  buttonImportMap.position(controlSpacer + 100, firstLine + (13*spaceY));
 }
 
 function draw() {
@@ -1056,21 +1085,38 @@ function draw() {
   let robotCorX = (lastRobotCorX*scale) + mapOffsetX;
   let robotCorY = -(lastRobotCorY*scale) + mapOffsetY;
 
+  let mX = (mouseX-mapOffsetX)/scale;
+  let mY = -(mouseY-mapOffsetY)/scale;
+
+  let brake = radioAutoManual.value();
+  if (brake === "enable brake" && toggleBrake === 0){
+    enableBrake();
+    toggleBrake = 1;
+  }
+
+  if (brake === "disable brake" && toggleBrake ===1){
+    disableBrake();
+    toggleBrake = 0;
+  }
+
   fill(0);
   textSize(14);
   textStyle(NORMAL);
-  text("MANUAL CONTROL", controlSpacer + 70, 50);
-  text("AUTO CONTROL", controlSpacer + 70, 300);
+  text("MANUAL CONTROL", controlSpacer + 70, 20);
+  text("AUTO CONTROL", controlSpacer + 70, 270);
 
+  textSize(12);
+  text("Import (json)", controlSpacer + 10, 455);
+
+  textSize(14);
   fill(255);
-  // noStroke();
-  
   text("Connection : " + connectionStatus, 20, 20);
   text("Coordinate (x, y): " + lastRobotCorX + ", " + lastRobotCorY, 200, 20);  // offset from edge 30px
   text("Heading : " + lastRobotCorH, 390, 20);
   text("Battery : " + lastBattVolt +"v | "+lastBattPers+"%", 510, 20);
   text("Robot Status : "+robotMode+" | "+robotStatus, 690, 20);
 
+  
   // DRAW LAST DATA WALL
   // angleMode(RADIANS);
   // stroke(0,255,0);
@@ -1122,15 +1168,33 @@ function draw() {
     strokeWeight(10);
     point(dataMap.gas.voc[r][0], dataMap.gas.voc[r][1]);
 
-    noStroke();
-    textSize(10);
-    text("VOC  : " + dataMap.gas.voc[r][2] + " ppm", dataMap.gas.voc[r][0] + 30, dataMap.gas.voc[r][1] - 30);
-    text("CO2  : " + dataMap.gas.co2[r][2] + " ppm", dataMap.gas.co2[r][0] + 30, dataMap.gas.co2[r][1] - 20);
-    text("SMOKE: " + dataMap.gas.smoke[r][2] + " ppm", dataMap.gas.smoke[r][0] + 30, dataMap.gas.smoke[r][1] - 10);
+    let gasPointX = (dataMap.gas.voc[r][0] - mapOffsetX) / scale;
+    let gasPointY = (dataMap.gas.voc[r][1] - mapOffsetY) / scale;
 
+    if (mX >= gasPointX-30 && mX <= gasPointX + 30 && mY >= gasPointY-30 && mY <= gasPointY+30){
+      noStroke();
+      textSize(10);
+      text("VOC  : " + dataMap.gas.voc[r][2] + " ppb", dataMap.gas.voc[r][0] + 30, dataMap.gas.voc[r][1] - 30);
+      text("CO2  : " + dataMap.gas.co2[r][2] + " ppm", dataMap.gas.co2[r][0] + 30, dataMap.gas.co2[r][1] - 20);
+      text("SMOKE: " + dataMap.gas.smoke[r][2] + " ppm", dataMap.gas.smoke[r][0] + 30, dataMap.gas.smoke[r][1] - 10);
+  
+      stroke(255);
+      strokeWeight(1);
+      line(dataMap.gas.voc[r][0] + 5, dataMap.gas.voc[r][1] - 5, dataMap.gas.voc[r][0] + 30, dataMap.gas.voc[r][1] - 30);
+    }
+
+  }
+
+ 
+  
+  if (mX >= lastRobotCorX-30 && mX <= lastRobotCorX + 30 &&
+   mY >= lastRobotCorY-30 && mY <= lastRobotCorY+30){
+    noStroke();
+    textSize(14);
+    text("Robot" ,robotCorX + 30, robotCorY -30);
     stroke(255);
     strokeWeight(1);
-    line(dataMap.gas.voc[r][0] + 5, dataMap.gas.voc[r][1] - 5, dataMap.gas.voc[r][0] + 30, dataMap.gas.voc[r][1] - 30);
+    line(robotCorX + 5, robotCorY - 5, robotCorX + 30, robotCorY - 30);
   }
 
   // ROBOT MODEL
@@ -1170,12 +1234,15 @@ function draw() {
     if (seqPathPlanning === 1){
       waiting=1;
       console.log("SET HEADING");
-      setHeading(pathPlanHeading);
+      // setHeading(pathPlanHeading);
+      setHeading(missionArray[pathCount][0]);
     }
     if (seqHeading === 1){
       waiting=1;
       console.log("SET FORWARD");
-      setForward(pathPlanForward);
+      // setForward(pathPlanForward);
+      setForward(missionArray[pathCount][1]);
+      pathCount +=1;
     }
     if (seqForward === 1){
       if (RTH === 1){
@@ -1184,7 +1251,13 @@ function draw() {
         robotMode = "Manual";
       }else{
         //next cycle
-        cycle = 0;
+        if (pathCount !== missionArray.length){
+          seqPathPlanning = 1;
+        }
+        else{
+          cycle = 0;
+          pathCount = 0;
+        }
       }
     }
   }

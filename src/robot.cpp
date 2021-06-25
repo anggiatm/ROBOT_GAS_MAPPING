@@ -51,7 +51,8 @@ TaskHandle_t watchCommand_Handle;
 Servo MOTOR_SERVO;
 VL53L0X SENSOR_RANGE;
 MPU6050 SENSOR_MPU;
-SGP30 SENSOR_VOC;
+// SGP30 SENSOR_VOC;
+Adafruit_SGP30 SENSOR_VOC;
 battery SENSOR_BATTERY;
 
 DynamicJsonDocument doc(1024*6); // fixed size 9216
@@ -78,6 +79,7 @@ uint8_t set_heading_running = 0;
 uint8_t set_forward_running = 0;
 uint8_t set_scan_running = 0;
 uint8_t set_calibrate_running = 0;
+uint8_t enable_brake = 0;
 
 int angle_offset = 0;
 int calibrated_angle;
@@ -91,6 +93,8 @@ VectorFloat gravity;    // [x, y, z]            gravity vector
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 volatile bool mpuInterrupt = false;
 
+MQUnifiedsensor MQ2("ESP32", 3.3, 12, SMOKE_SENSOR, "MQ-2");
+
 // const char* ssid = "RP";
 // const char* password = "rumahpenelitian123";
 
@@ -101,7 +105,8 @@ const char* password = "123456789";
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
-DHT_Unified SENSOR_DHT(DHT11_PIN, DHTTYPE);
+// DHT_Unified SENSOR_DHT(DHT11_PIN, DHTTYPE);
+SimpleDHT11 SENSOR_DHT(DHT11_PIN);
 
 String splitString(String data, char separator, int index){
   int found = 0;
@@ -190,7 +195,7 @@ void setZeroStepPosition(){
 }
 
 void resumeMotorTask(){
-  digitalWrite(STEPPER_ENABLE_PIN, LOW);
+  enableMotor();
   MOTOR_R.resumeService();
   MOTOR_L.resumeService();
   setZeroStepPosition();
@@ -200,7 +205,9 @@ void suspendMotorTask(){
   setZeroStepPosition();
   MOTOR_R.suspendService();
   MOTOR_L.suspendService();
-  digitalWrite(STEPPER_ENABLE_PIN, HIGH);
+  if (enable_brake == 0){
+    disableMotor();
+  }
 }
 
 void setHeading(int target){
@@ -208,7 +215,7 @@ void setHeading(int target){
   SENSOR_MPU.resetFIFO();
   int mpu_target = calculateToTargetHeading(target);
 
-  while (target > 1 || target < -1){                           //DEADBAND -1 to 1 degree
+  while (target != 0){                           //DEADBAND 0
     target = calculateAngleRemaining(mpu_target);
     long target_step = target*STEP_PER_MM*MM_PER_DEGREE;
     MOTOR_R.setTargetPositionRelativeInSteps(-target_step);
@@ -236,7 +243,7 @@ void forward(int target){
     current_position_l = MOTOR_L.getCurrentPositionInSteps();
     angle_glide = calculateAngleRemaining(angle_stamp);
 
-    while (angle_glide > 1 || angle_glide < -1){                           //DEADBAND -1 to 1 degree
+    while (angle_glide != 0){                           //DEADBAND -1 to 1 degree
       MOTOR_R.setTargetPositionRelativeInSteps(-calculateAngleRemaining(angle_stamp));
       MOTOR_L.setTargetPositionRelativeInSteps(calculateAngleRemaining(angle_stamp));
       
@@ -271,11 +278,18 @@ void scan(){
     }
   }
   //measure CO2 and TVOC levels
-  SENSOR_VOC.measureAirQuality();
+  
+  SENSOR_VOC.IAQmeasure();
   gas["voc"] = SENSOR_VOC.TVOC;
-  gas["co2"] = SENSOR_VOC.CO2;
+  gas["co2"] = SENSOR_VOC.eCO2;
+
+  // SENSOR_VOC.measureAirQuality();
+  // gas["voc"] = SENSOR_VOC.TVOC;
+  // gas["co2"] = SENSOR_VOC.CO2;
   //measure smoke
-  gas["smoke"] = analogRead(SMOKE_SENSOR);
+
+  MQ2.update();
+  gas["smoke"] = MQ2.readSensor();
   //measure battery level
   gas["battVolt"] = SENSOR_BATTERY.getBatteryVoltage();
   gas["battPers"] = SENSOR_BATTERY.getBatteryPercentage();
@@ -354,6 +368,16 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
         set_calibrate_running = 1;
       }
 
+      else if (command == "enablebrake"){
+        Serial.println("DEBUG : ENABLE BRAKE");
+        enable_brake = 1;
+      }
+
+      else if (command == "disablebrake"){
+        Serial.println("DEBUG : DISABLE BRAKE");
+        enable_brake = 0;
+      }
+
       else {
         Serial.println("UNKNOWN COMMAND");
       }
@@ -408,6 +432,18 @@ void setup(){
   Serial.begin(115200);
   MOTOR_SERVO.attach(23);
   MOTOR_SERVO.write(SERVO_NEUTRAL); 
+
+  pinMode(HALL_SENSOR, INPUT);
+  pinMode(STEPPER_ENABLE_PIN, OUTPUT);
+  pinMode(LED_R, OUTPUT);
+  pinMode(LED_G, OUTPUT);
+  pinMode(LED_B, OUTPUT);
+
+  pinMode(FAN_RELAY_PIN,OUTPUT);
+  pinMode(INTERRUPT_PIN, INPUT);
+  pinMode(SMOKE_SENSOR, INPUT);
+  pinMode(SENSOR_BATTERY_PIN, INPUT);
+
   if(!SPIFFS.begin(true)){
     Serial.println("An Error has occurred while mounting SPIFFS");
     return;
@@ -419,20 +455,32 @@ void setup(){
   }
   //Initializes sensor for air quality readings
   //measureAirQuality should be called in one second increments after a call to initAirQuality
-  SENSOR_VOC.initAirQuality();
-  SENSOR_DHT.begin();
+  // SENSOR_VOC.initAirQuality();
+  SENSOR_VOC.begin();
+  MQ2.setRegressionMethod(1); //_PPM =  a*ratio^b
+  MQ2.setA(36974); MQ2.setB(-3.109);
+  /*
+    Exponential regression:
+    Gas    | a      | b
+    H2     | 987.99 | -2.162
+    LPG    | 574.25 | -2.222
+    CO     | 36974  | -3.109
+    Alcohol| 3616.1 | -2.675
+    Propane| 658.71 | -2.168
+  */
+  MQ2.init(); 
+  float calcR0 = 0;
+  for(int i = 1; i<=10; i ++)
+  {
+    MQ2.update(); // Update data, the arduino will be read the voltage on the analog pin
+    calcR0 += MQ2.calibrate(9.83);
+    Serial.print(".");
+  }
+  MQ2.setR0(calcR0/10);
 
-  pinMode(HALL_SENSOR, INPUT);
-  
-  pinMode(STEPPER_ENABLE_PIN, OUTPUT);
+  // SENSOR_DHT.begin();
 
-  pinMode(LED_R, OUTPUT);
-  pinMode(LED_G, OUTPUT);
-  pinMode(LED_B, OUTPUT);
-
-  pinMode(FAN_RELAY_PIN,OUTPUT);
-
-  digitalWrite(STEPPER_ENABLE_PIN, HIGH);
+  disableMotor();
   sensorAlignment();
 
   SENSOR_RANGE.setTimeout(500);
@@ -446,7 +494,7 @@ void setup(){
   // initialize device
   Serial.println(F("Initializing I2C devices..."));
   SENSOR_MPU.initialize();
-  pinMode(INTERRUPT_PIN, INPUT);
+  
 
   Serial.println(F("Testing device connections..."));
   Serial.println(SENSOR_MPU.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
@@ -479,7 +527,7 @@ void setup(){
     Serial.print(devStatus);
     Serial.println(F(")"));
   }
-  delay(3000);
+  // delay(3000);
 
   MOTOR_R.connectToPins(STEP_R, DIR_R);
   MOTOR_L.connectToPins(STEP_L, DIR_L);
@@ -538,33 +586,4 @@ void setup(){
 }
 
 void loop() {
-  // sensors_event_t event;
-  // SENSOR_DHT.temperature().getEvent(&event);
-  // Serial.println(event.temperature);
-  // Serial.println(analogRead(DHT11_PIN));
-  // Read temperature as Celsius (the default)
-  // float t = SENSOR_DHT.readTemperature();
-  // Serial.println(h);
-  // Serial.println(t);
-  // Serial.println(SENSOR_BATTERY.getBatteryVoltage());
-  // Serial.println(SENSOR_BATTERY.getBatteryPercentage());
-  // Serial.println(getAngle());
-  // delay(1000); //Wait 1 second
-  // //measure CO2 and TVOC levels
-  // SENSOR_VOC.measureAirQuality();
-  // Serial.print("CO2: ");
-  // Serial.print(SENSOR_VOC.CO2);
-  // Serial.print(" ppm\tTVOC: ");
-  // Serial.print(SENSOR_VOC.TVOC);
-  // Serial.println(" ppb");
-
-  // int gassensorAnalog = analogRead(SMOKE_SENSOR);
-  // Serial.println(gassensorAnalog);
-
-  // int battVolt = analogRead(SENSOR_BATTERY);
-  // Serial.println(battVolt);
-  // digitalWrite(LED_R, LOW);
-  // delay(1000);
-  // digitalWrite(LED_R, HIGH);
-  // delay(1000);
 }

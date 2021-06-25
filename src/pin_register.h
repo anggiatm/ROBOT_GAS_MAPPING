@@ -1,5 +1,5 @@
-#ifndef pin_register.h
-#define pin_register.h
+// #ifndef pin_register.h
+// #define pin_register.h
 
 //#define PIN_SDA 21
 //#define PIN_SCL 22
@@ -24,4 +24,4 @@
 
 #define FAN_RELAY_PIN       18
 
-#endif
+// #endif
