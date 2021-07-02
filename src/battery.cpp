@@ -35,7 +35,7 @@ int battery::getBatteryAdc(){
 }
 
 float battery::convertAdcToVoltage(int adc){
-    return ((adc * 3.15)/4095 *4);
+    return ((adc * 3.25)/4095 *4);
 }
 
 float battery::getBatteryVoltage(){

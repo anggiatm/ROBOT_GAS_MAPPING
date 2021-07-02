@@ -63,7 +63,6 @@ size_t buffer_len;
 JsonArray wall = doc.createNestedArray("wall");
 JsonObject gas = doc.createNestedObject("gas");
 
-// bool dmpReady = false;
 uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
 uint8_t devStatus;
 uint16_t packetSize;
@@ -72,8 +71,9 @@ uint8_t fifoBuffer[64]; // FIFO storage buffer
 
 int angle;
 int angle_old = 0;
+sensors_event_t DHT11_EVENT;
 
-uint16_t count;
+uint8_t count;
 bool hall_detect;
 uint8_t set_heading_running = 0;
 uint8_t set_forward_running = 0;
@@ -81,7 +81,8 @@ uint8_t set_scan_running = 0;
 uint8_t set_calibrate_running = 0;
 uint8_t enable_brake = 0;
 
-int angle_offset = 0;
+float angle_offset = 0;
+const float radian = 57.3;
 int calibrated_angle;
 
 int val_heading;
@@ -101,12 +102,10 @@ MQUnifiedsensor MQ2("ESP32", 3.3, 12, SMOKE_SENSOR, "MQ-2");
 const char* ssid = "MIX";
 const char* password = "123456789";
 
-// Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
-// DHT_Unified SENSOR_DHT(DHT11_PIN, DHTTYPE);
-SimpleDHT11 SENSOR_DHT(DHT11_PIN);
+DHT_Unified SENSOR_DHT(DHT11_PIN, DHTTYPE);
 
 String splitString(String data, char separator, int index){
   int found = 0;
@@ -140,14 +139,13 @@ int getAngle(){
     SENSOR_MPU.dmpGetGravity(&gravity, &q);
     SENSOR_MPU.dmpGetYawPitchRoll(ypr, &q, &gravity);
 
-    calibrated_angle = (-ypr[0] * 57.2958) + 180;
+    calibrated_angle = (-ypr[0] * radian) + 180;
     calibrated_angle = calibrated_angle + angle_offset;
-    calibrated_angle = normalizeAngle(calibrated_angle);
-    // Serial.println(SENSOR_MPU.getFIFOCount());
+    calibrated_angle = normalizeAngle(round(calibrated_angle));
     return calibrated_angle;
 }
 
-int getAngleRaw(){
+float getAngleRaw(){
   SENSOR_MPU.dmpGetCurrentFIFOPacket(fifoBuffer);
   SENSOR_MPU.dmpGetQuaternion(&q, fifoBuffer);
   SENSOR_MPU.dmpGetGravity(&gravity, &q);
@@ -214,12 +212,12 @@ void setHeading(int target){
   resumeMotorTask();
   SENSOR_MPU.resetFIFO();
   int mpu_target = calculateToTargetHeading(target);
+  int angle_glide = calculateAngleRemaining(mpu_target);
 
-  while (target != 0){                           //DEADBAND 0
-    target = calculateAngleRemaining(mpu_target);
-    long target_step = target*STEP_PER_MM*MM_PER_DEGREE;
-    MOTOR_R.setTargetPositionRelativeInSteps(-target_step);
-    MOTOR_L.setTargetPositionRelativeInSteps(target_step);
+  while (angle_glide != 0){                           //DEADBAND 0
+    MOTOR_R.setTargetPositionRelativeInSteps(-target);
+    MOTOR_L.setTargetPositionRelativeInSteps(target);
+    angle_glide = calculateAngleRemaining(mpu_target);
     // Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
     // Serial.println(MOTOR_L.getCurrentPositionInSteps()); 
   }
@@ -242,15 +240,19 @@ void forward(int target){
     current_position_r = MOTOR_R.getCurrentPositionInSteps();
     current_position_l = MOTOR_L.getCurrentPositionInSteps();
     angle_glide = calculateAngleRemaining(angle_stamp);
-
-    while (angle_glide != 0){                           //DEADBAND -1 to 1 degree
-      MOTOR_R.setTargetPositionRelativeInSteps(-calculateAngleRemaining(angle_stamp));
-      MOTOR_L.setTargetPositionRelativeInSteps(calculateAngleRemaining(angle_stamp));
-      
-      MOTOR_R.setCurrentPositionInSteps(current_position_r);
-      MOTOR_L.setCurrentPositionInSteps(current_position_l);
+    while (angle_glide < -1 || angle_glide > 1){           
       angle_glide = calculateAngleRemaining(angle_stamp);
+      MOTOR_R.setTargetPositionRelativeInSteps(-angle_glide);
+      MOTOR_L.setTargetPositionRelativeInSteps(angle_glide);
     }
+  }
+  angle_glide = calculateAngleRemaining(angle_stamp);
+  while (angle_glide < -1 || angle_glide > 1){           
+    MOTOR_R.setTargetPositionRelativeInSteps(-angle_glide);
+    MOTOR_L.setTargetPositionRelativeInSteps(angle_glide);
+    angle_glide = calculateAngleRemaining(angle_stamp);
+    // Serial.print("DEBUG : MOTOR RUNNING !! POS = ");
+    // Serial.println(MOTOR_L.getCurrentPositionInSteps()); 
   }
   suspendMotorTask();
 }
@@ -259,8 +261,8 @@ void scan(){
   SENSOR_MPU.resetFIFO();
   digitalWrite(FAN_RELAY_PIN, HIGH);
   count = 0;
-  int hall = 0;
-  int old_hall = 0;
+  uint8_t hall = 0;
+  uint8_t old_hall = 0;
   MOTOR_SERVO.write(SERVO_RUN_CW);
   while (count <= 1){
     hall = digitalRead(HALL_SENSOR);
@@ -270,8 +272,6 @@ void scan(){
     }
     angle = getAngle();
     if (angle != angle_old){
-      // root["a"+String(angle)] = SENSOR_RANGE.readRangeSingleMillimeters();
-      // wall["a"+String(angle)] = SENSOR_RANGE.readRangeSingleMillimeters();
       wall[angle] = SENSOR_RANGE.readRangeSingleMillimeters();
       angle_old = angle;
       Serial.println(angle);
@@ -283,13 +283,13 @@ void scan(){
   gas["voc"] = SENSOR_VOC.TVOC;
   gas["co2"] = SENSOR_VOC.eCO2;
 
-  // SENSOR_VOC.measureAirQuality();
-  // gas["voc"] = SENSOR_VOC.TVOC;
-  // gas["co2"] = SENSOR_VOC.CO2;
-  //measure smoke
-
   MQ2.update();
   gas["smoke"] = MQ2.readSensor();
+
+  SENSOR_DHT.temperature().getEvent(&DHT11_EVENT);
+  gas["temp"] = DHT11_EVENT.temperature;
+  SENSOR_DHT.humidity().getEvent(&DHT11_EVENT);
+  gas["hum"] = DHT11_EVENT.relative_humidity;
   //measure battery level
   gas["battVolt"] = SENSOR_BATTERY.getBatteryVoltage();
   gas["battPers"] = SENSOR_BATTERY.getBatteryPercentage();
@@ -311,6 +311,7 @@ void task_watch_command(void *pvParameters){
     }
 
     if (set_heading_running > 0){
+      getAngle();
       setHeading(val_heading);
       set_heading_running = 0;
       // vTaskDelay(1000/portTICK_PERIOD_MS);
@@ -318,6 +319,7 @@ void task_watch_command(void *pvParameters){
     }
 
     if (set_forward_running > 0){
+      getAngle();
       forward(val_forward);
       set_forward_running = 0 ;
       // vTaskDelay(1000/portTICK_PERIOD_MS);
@@ -449,13 +451,10 @@ void setup(){
     return;
   }
 
-  if (SENSOR_VOC.begin() == false) {
-    Serial.println("No SGP30 Detected. Check connections.");
-    while (1);
-  }
-  //Initializes sensor for air quality readings
-  //measureAirQuality should be called in one second increments after a call to initAirQuality
-  // SENSOR_VOC.initAirQuality();
+  // if (SENSOR_VOC.begin() == false) {
+  //   Serial.println("No SGP30 Detected. Check connections.");
+  //   while (1);
+  // }
   SENSOR_VOC.begin();
   MQ2.setRegressionMethod(1); //_PPM =  a*ratio^b
   MQ2.setA(36974); MQ2.setB(-3.109);
@@ -470,7 +469,7 @@ void setup(){
   */
   MQ2.init(); 
   float calcR0 = 0;
-  for(int i = 1; i<=10; i ++)
+  for(int i = 1; i<=10; i++)
   {
     MQ2.update(); // Update data, the arduino will be read the voltage on the analog pin
     calcR0 += MQ2.calibrate(9.83);
@@ -478,7 +477,7 @@ void setup(){
   }
   MQ2.setR0(calcR0/10);
 
-  // SENSOR_DHT.begin();
+  SENSOR_DHT.begin();
 
   disableMotor();
   sensorAlignment();
@@ -527,12 +526,16 @@ void setup(){
     Serial.print(devStatus);
     Serial.println(F(")"));
   }
-  // delay(3000);
+  delay(3000);
 
   MOTOR_R.connectToPins(STEP_R, DIR_R);
   MOTOR_L.connectToPins(STEP_L, DIR_L);
   MOTOR_R.setSpeedInStepsPerSecond(SPEED_STEP_PER_SECOND);
   MOTOR_L.setSpeedInStepsPerSecond(SPEED_STEP_PER_SECOND);
+  MOTOR_R.setAccelerationInStepsPerSecondPerSecond(80.0);
+  MOTOR_L.setAccelerationInStepsPerSecondPerSecond(80.0);
+  MOTOR_R.setDecelerationInStepsPerSecondPerSecond(600.0);
+  MOTOR_L.setDecelerationInStepsPerSecondPerSecond(600.0);
   
   // Connect to Wi-Fi
   WiFi.begin(ssid, password);

@@ -68,8 +68,8 @@ ESP_FlexyStepper::ESP_FlexyStepper()
   this->currentPosition_InSteps = 0L;
   this->targetPosition_InSteps = 0L;
   this->setSpeedInStepsPerSecond(200);
-  this->setAccelerationInStepsPerSecondPerSecond(200.0);
-  this->setDecelerationInStepsPerSecondPerSecond(200.0);
+  this->setAccelerationInStepsPerSecondPerSecond(300.0);
+  this->setDecelerationInStepsPerSecondPerSecond(300.0);
   this->currentStepPeriod_InUS = 0.0;
   this->nextStepPeriod_InUS = 0.0;
   this->emergencyStopActive = false;

@@ -14,7 +14,7 @@
 
 #define HALL_SENSOR         19  // INVERTED !!! || ON = 0 || OFF = 1
 
-#define DHT11_PIN           35
+#define DHT11_PIN           16
 #define SMOKE_SENSOR        34    // used for ESP32
 #define SENSOR_BATTERY_PIN  39
 

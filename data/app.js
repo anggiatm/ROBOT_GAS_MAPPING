@@ -1,4 +1,4 @@
-var gateway = "ws://192.168.43.27/ws";
+var gateway = "ws://192.168.43.222/ws";
 // var gateway = "ws://192.168.1.11/ws";
 
 var websocket;
@@ -76,6 +76,10 @@ let radioAutoManual;
 let buttonStartAuto;
 let buttonStopAuto;
 let buttonHoming;
+let buttonEmergencyStop;
+
+let checkboxRobotPath;
+let robotPathChecked = 0;
 
 let mode = 0;
 let pointing = 0;
@@ -126,7 +130,7 @@ function onMessage(event) {
   let lastRobotCorY = dataMap.robotCor[dataMap.robotCor.length-1][1];
   lastRobotCorX = (scale*lastRobotCorX) + mapOffsetX;
   lastRobotCorY = -(scale*lastRobotCorY) + mapOffsetY;
-  // console.log(event.data);
+  console.log(event.data);
   if(event.data.length > 50){
     let data = JSON.parse(event.data);
     angleMode(RADIANS);
@@ -150,6 +154,8 @@ function onMessage(event) {
     dataMap.gas.voc.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.voc, 10)]);
     dataMap.gas.co2.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.co2, 10)]);
     dataMap.gas.smoke.push([lastRobotCorX, lastRobotCorY, parseFloat(data.gas.smoke).toFixed(2)]);
+    dataMap.gas.temp.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.temp).toFixed(2)]);
+    dataMap.gas.hum.push([lastRobotCorX, lastRobotCorY, parseFloat(data.gas.hum).toFixed(2)]);
     dataMap.gas.battVolt.push([lastRobotCorX, lastRobotCorY, parseFloat(data.gas.battVolt).toFixed(2)]);
     dataMap.gas.battPers.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.battPers, 10)]);
 
@@ -1004,6 +1010,32 @@ function importDataMap(file){
   }
 }
 
+function exportImage(){
+  dataMap.saveCanvas  ("dataMap", "png");
+}
+
+function showRobotPath() {
+  if (this.checked()) {
+    robotPathChecked = 1;
+  } else {
+    robotPathChecked = 0;
+  }
+}
+
+function wallClustering(){
+  let wall = [];
+  let cluster = [];
+  for (let i=0; i<1000; i+=100){
+    for(let j=0; j<dataMap.wall.length; j++){
+      if (dataMap.wall[j][0] >= i && dataMap.wall[j][0] <= i+100){
+        cluster.push(dataMap.wall[j][0]);
+      }
+    }
+    wall.push(cluster);
+    cluster = [];
+  }
+  console.log(wall);
+}
 
 function setup() {
   let canvas = createCanvas(windowWidth - 50, windowHeight -100);
@@ -1046,6 +1078,10 @@ function setup() {
   // radioAutoManual.mousePressed(autoManual);
   radioAutoManual.style("width","300px");
 
+  checkboxRobotPath = createCheckbox("Show robot path", false);
+  checkboxRobotPath.position(controlSpacer + 60, firstLine + (5*spaceY));
+  checkboxRobotPath.changed(showRobotPath);
+
   buttonStartAuto = createButton("START AUTO");
   buttonStartAuto.position(controlSpacer + 30, firstLine + (8*spaceY));
   buttonStartAuto.mousePressed(startAuto);
@@ -1057,6 +1093,10 @@ function setup() {
   buttonHoming = createButton("RETURN TO HOME");
   buttonHoming.position(controlSpacer + 60, firstLine + (9*spaceY));
   buttonHoming.mousePressed(returnToHome);
+
+  buttonEmergencyStop = createButton("EMERGENCY STOP");
+  buttonEmergencyStop.position(controlSpacer + 60, firstLine + (10*spaceY));
+  buttonEmergencyStop.mousePressed(wallClustering);
 
   buttonExportMap = createButton("Export data Map");
   buttonExportMap.position(controlSpacer + 30, firstLine + (12*spaceY));
@@ -1086,7 +1126,7 @@ function draw() {
   let robotCorY = -(lastRobotCorY*scale) + mapOffsetY;
 
   let mX = (mouseX-mapOffsetX)/scale;
-  let mY = -(mouseY-mapOffsetY)/scale;
+  let mY = (mouseY-mapOffsetY)/scale;
 
   let brake = radioAutoManual.value();
   if (brake === "enable brake" && toggleBrake === 0){
@@ -1165,7 +1205,7 @@ function draw() {
     else{
       stroke(0,255,0);
     }
-    strokeWeight(10);
+    strokeWeight(15);
     point(dataMap.gas.voc[r][0], dataMap.gas.voc[r][1]);
 
     let gasPointX = (dataMap.gas.voc[r][0] - mapOffsetX) / scale;
@@ -1177,16 +1217,12 @@ function draw() {
       text("VOC  : " + dataMap.gas.voc[r][2] + " ppb", dataMap.gas.voc[r][0] + 30, dataMap.gas.voc[r][1] - 30);
       text("CO2  : " + dataMap.gas.co2[r][2] + " ppm", dataMap.gas.co2[r][0] + 30, dataMap.gas.co2[r][1] - 20);
       text("SMOKE: " + dataMap.gas.smoke[r][2] + " ppm", dataMap.gas.smoke[r][0] + 30, dataMap.gas.smoke[r][1] - 10);
-  
       stroke(255);
       strokeWeight(1);
       line(dataMap.gas.voc[r][0] + 5, dataMap.gas.voc[r][1] - 5, dataMap.gas.voc[r][0] + 30, dataMap.gas.voc[r][1] - 30);
     }
-
   }
 
- 
-  
   if (mX >= lastRobotCorX-30 && mX <= lastRobotCorX + 30 &&
    mY >= lastRobotCorY-30 && mY <= lastRobotCorY+30){
     noStroke();
@@ -1195,6 +1231,17 @@ function draw() {
     stroke(255);
     strokeWeight(1);
     line(robotCorX + 5, robotCorY - 5, robotCorX + 30, robotCorY - 30);
+  }
+  stroke(255,0,0);
+  strokeWeight(1);
+  if (robotPathChecked === 1){
+    for(let s=1; s<dataMap.robotCor.length; s++ ){
+      let x1 = (dataMap.robotCor[s-1][0]*scale) + mapOffsetX;
+      let y1 = -(dataMap.robotCor[s-1][1]*scale) + mapOffsetY;
+      let x2 = (dataMap.robotCor[s][0]*scale) + mapOffsetX;
+      let y2 = -(dataMap.robotCor[s][1]*scale) + mapOffsetY;
+      line(x1, y1, x2, y2);
+    }
   }
 
   // ROBOT MODEL
