@@ -8,33 +8,40 @@ PROJECT INI DIBUAT UNTUK BAHAN SKRIPSI
 FMIPA | ILMU KOMPUTER | UNIVERSITAS PAKUAN | 2021
 
 Pada repositori ini terdapat beberapa resources yang digunakan untuk membuat robot mapping kadar gas sebuah ruangan,
-diantaranya adalah
+diantaranya adalah :
 - source code arduino framework
 - source code web interface dengan p5.js
 - file 3D printer (.STL)
 - dokumentasi
 
 Beberapa bahan bahan yang digunakan pada robot ini diantaranya
-- ---------(menunggu update)
+- ESP32 DEVKIT
+- SENSOR MPU6050
+- SENSOR VL53L0X
+- SENSOR SGP30
+- SENSOR MQ-2
+- SENSOR DHT11
+- HALL SENSOR
+- STEPPER MOTOR
+- DRIVER A4988
+- MICRO SERVO
 
 Kalkulasi mekanis untuk keperluan koordinat sistem / pergerakan stepper motor
 KALKULASI SUDUT PUTAR ROBOT / STEP PER MM
 
-| KETERANGAN                            | NILAI                                         |
-| :---:                                 | :-:                                           |
-| DIAMETER RODA (OD)                    | 70MM                                          |
-| DIAMETER JARAK RODA KANAN & RODA KIRI | 301                                           |
-| SPEK STEPPER MOTOR                    | 1.8deg/Step = 200 STEP PER REVOLUTION         | 
-| MICROSTEPPING                         | 1/4                                           |
-| MICROSTEPPING FULL ROTATION           | 200 * 4 = 800 STEP PER REVOLUTION             |
-| RUMUS KELILING LIINGKARAN             | K = π * d                                     |
-| PANJANG KELILING RODA                 | π * 70 = 219.91148575128552669238503682957 MM |
-| STEP PER MM BERDASARKAN KELILING RODA | MICROSTEPPING FULL ROTATION / PANJANG KELILING RODA  = 800 / 219.91148575128552669238503682957   = 3.6378272706718933890030574485145 STEPS PER MM     |
- | PANJANG KELILING RODA                  | π * 70 = 219.91148575128552669238503682957 MM | 
- | STEP PER MM BERDASARKAN KELILING RODA  | MICROSTEPPING FULL ROTATION / PANJANG KELILING RODA =800 / 219.91148575128552669238503682957 =3.6378272706718933890030574485145 STEPS PER MM |
- | KELILING DIAMETER RODA KANAN & KIRI    | π x 95 = 298.45130209103035765395112141155 MM | 
- | FULL ROBOT SPIN (360deg) IN STEPS      | KELILING DIAMETER RODA KANAN & KIRI * STEP PER MM BERDASARKAN KELILING RODA =298.45130209103035765395112141155 * 3.6378272706718933890030574485145 = 1,085.7142857142857142857142857143 STEPS | 
- | STEP PER DEGREE ROBOT ROTATION         | FULL ROBOT SPIN (360deg) IN STEPS / 360deg =1,085.7142857142857142857142857143 / 360 = 3.0158730158730158730158730158729 STEP PER DEGREE | 
- | MM PER DEGREE ROBOT SPIN               | KELILING DIAMETER RODA KANAN & KIRI / 360 =298.45130209103035765395112141155 / 360 =0.82903139469730654903875311503208 MM PER DEGREE | 
+| KETERANGAN                          | NILAI                                         |
+| :---:                               | :-:                                           |
+| DIAMETER RODA (OD)                  | 70 mm                                          |
+| DIAMETER JARAK RODA KANAN & KIRI    | 95 mm                                           |
+| SPEK STEPPER MOTOR                  | 1.8deg/Step = 200 STEP/REVOLUTION         | 
+| MICROSTEPPING                       | 1/8                                           |
+| MICROSTEPPING FULL ROTATION         | 200 * 8 = 1600 STEP/REVOLUTION             |
+| RUMUS KELILING LIINGKARAN           | K = π * d                                     |
+| PANJANG KELILING RODA               | π * 70 = 219.91 mm |
+| STEP/MM BERDASARKAN KELILING RODA   | MICROSTEPPING FULL ROTATION / PANJANG KELILING RODA  = 1600 / 219.91   = 7.28 STEPS/MM     |
+| KELILING DIAMETER RODA KANAN & KIRI | π x 95 = 298.45 mm | 
+| FULL ROBOT SPIN (360deg) IN STEPS   | KELILING DIAMETER RODA KANAN & KIRI * STEP/MM BERDASARKAN KELILING RODA = 298.45 * 7.28 = 2171.43 STEPS | 
+| STEP/DEGREE ROBOT ROTATION         | FULL ROBOT SPIN (360deg) IN STEPS / 360deg = 2171.43 / 360 = 6.03 STEP PER DEGREE | 
+| MM/DEGREE ROBOT SPIN               | KELILING DIAMETER RODA KANAN & KIRI / 360 = 298.45 / 360 = 0.83 MM PER DEGREE | 
 
 
