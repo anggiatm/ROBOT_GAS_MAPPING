@@ -4,10 +4,12 @@
 [![Travis-CI Build](https://travis-ci.com/anggiatm/ROBOT_GAS_MAPPING.svg?branch=main)](https://travis-ci.com/anggiatm/ROBOT_GAS_MAPPING)
 [![Build](https://github.com/anggiatm/ROBOT_GAS_MAPPING/actions/workflows/c-cpp.yml/badge.svg)](https://github.com/anggiatm/ROBOT_GAS_MAPPING/actions/workflows/c-cpp.yml)
 #
+<p>
 Project ini dibuat untuk bahan skripsi Ilmu Komputer Universitas Pakuan | 2021
 Dengan judul "MODEL ROBOT PENDETEKSI KUALITAS UDARA DALAM RUANGAN BERBASIS INTERNET OF THINKS (IOT)"
 Robot dilengkapi dengan sensor LiDAR untuk mendeteksi dinding disekitar robot, sensor lidar mengacu pada repositori yang telah dikembangkan sebelumnya [Low Budget Lidar by Anggiat](https://github.com/anggiatm/Low_Budget_Lidar)
 Selain itu untuk mempermudah pengembagan robot digunakan beberapa library opensource tambahan diantaranya :
+</p>
 <details>
   <summary>Show !</summary>
   * [i2cdevlib by jrowberg](https://github.com/jrowberg/i2cdevlib)
