@@ -42,6 +42,16 @@ let dataGrid = [
 let curGridCol = 1;
 let curGridRow = 1;
 
+let wallHorizontal = [];
+let clusterHorizontal = [];
+let wallVertical = [];
+let clusterVertical = [];
+let wallClusterVerticalX = [];
+let wallClusterVerticalY = [];
+let wallClusterHorizontalX = [];
+let wallClusterHorizontalY = [];
+let wallLinearRegression = []; 
+
 let mapOffsetX = 150;
 let mapOffsetY = 450;
 
@@ -67,6 +77,8 @@ let buttonHeading;
 let buttonReadSensor;
 let buttonCalibrateMpu;
 let buttonExportMap;
+let buttonCalculateWall;
+let buttonResetMap;
 
 let buttonImportMap;
 
@@ -79,7 +91,17 @@ let buttonHoming;
 let buttonEmergencyStop;
 
 let checkboxRobotPath;
+let checkboxCalculatedWall;
 let robotPathChecked = 0;
+let calculatedWallChecked =0;
+let checkboxRawWall;
+let rawWallChecked = 1;
+
+let checkboxGrid;
+let checkboxCluster;
+
+let gridChecked = 0;
+let clusterChecked = 0;
 
 let mode = 0;
 let pointing = 0;
@@ -609,14 +631,14 @@ function missionPath(targetCol, targetRow){
     p = toTargetPointing(3);
     pointing = 3;
     belok = p * 90;
-    maju = Math.abs(colIncrement * 250);
+    maju = Math.abs(colIncrement * 230);
     missionArray.push([belok, maju]);
   }
   else if (colIncrement > 0){
     p = toTargetPointing(1);
     pointing = 1;
     belok = p * 90;
-    maju = Math.abs(colIncrement * 250);
+    maju = Math.abs(colIncrement * 230);
     missionArray.push([belok, maju]);
   }
   else{
@@ -624,14 +646,14 @@ function missionPath(targetCol, targetRow){
       p = toTargetPointing(0);
       pointing = 0;
       belok = p * 90;
-      maju = Math.abs(rowIncrement * 250);
+      maju = Math.abs(rowIncrement * 230);
       missionArray.push([belok, maju]);
     }
     else if (rowIncrement < 0){
       p = toTargetPointing(2);
       pointing =2;
       belok = p * 90;
-      maju = Math.abs(rowIncrement * 250);
+      maju = Math.abs(rowIncrement * 230);
       missionArray.push([belok, maju]);
     }
     else{
@@ -1022,19 +1044,165 @@ function showRobotPath() {
   }
 }
 
-function wallClustering(){
-  let wall = [];
-  let cluster = [];
-  for (let i=0; i<1000; i+=100){
-    for(let j=0; j<dataMap.wall.length; j++){
-      if (dataMap.wall[j][0] >= i && dataMap.wall[j][0] <= i+100){
-        cluster.push(dataMap.wall[j][0]);
+function showCalculatedWall() {
+  if (this.checked()) {
+    calculatedWallChecked = 1;
+  } else {
+    calculatedWallChecked = 0;
+  }
+}
+
+function showGrid() {
+  if (this.checked()) {
+    gridChecked = 1;
+  } else {
+    gridChecked = 0;
+  }
+}
+
+function showCluster(){
+  if (this.checked()) {
+    clusterChecked = 1;
+  } else {
+    clusterChecked = 0;
+  }
+}
+
+function showRawWall(){
+  if (this.checked()) {
+    rawWallChecked = 1;
+  } else {
+    rawWallChecked = 0;
+  }
+}
+
+function resetMap(){
+  dataMap = {
+    robotCor  : [
+                  [0,0,0]
+                ],                // [X, Y, H]
+    wall      : [],
+    gas       : {
+                  voc   : [
+                            //[100,100,500]  // [X, Y, VALUE]
+                          ],
+                  co2   : [
+                            //[100, 100,300]
+                          ],
+                  smoke     : [],
+                  temp      : [],
+                  hum       : [],
+                  quality   : [],
+                  battVolt  : [
+                                [0,0,0]
+                              ],
+                  battPers  : [
+                                [0,0,0]
+                              ]
+                }
+  };
+
+  dataGrid = [
+                    [0,0,0],
+                    [0,0,0],
+                    [0,0,0]
+                 ];
+  curGridCol = 1;
+  curGridRow = 1;
+}
+
+function calculateWall(){
+  let controlSpacer = displayWidth - (displayWidth/4);
+  let wallDumpX = [];
+  let wallDumpY = [];
+  let linearRegressionDump = [];
+  wallLinearRegression = [];
+  wallVertical = [];
+  wallHorizontal =[];
+  wallClusterHorizontalX=[];
+  wallClusterHorizontalY=[];
+  wallClusterVerticalX=[];
+  wallClusterVerticalY=[];
+  for (let f=0; f<controlSpacer; f+=20){
+    strokeWeight(1);
+    line(f,0,f, displayHeight);
+    for(let k=0; k<dataMap.wall.length; k++){
+      if (dataMap.wall[k][0] >= f && dataMap.wall[k][0] <= f+20){
+        clusterVertical.push(dataMap.wall[k]);
       }
     }
-    wall.push(cluster);
-    cluster = [];
+    wallVertical.push(clusterVertical);
+    clusterVertical = [];
   }
-  console.log(wall);
+  wallVertical.push([0]);
+  for (let w=1; w<wallVertical.length; w++){
+    if (wallVertical[w].length > 90){
+      if (wallVertical[w].length > wallVertical[w-1].length && wallVertical[w].length > wallVertical[w+1].length){
+        for (let c=0; c<wallVertical[w].length; c++){
+          // point(wall[w][c][0], wall[w][c][1]);
+          wallDumpX.push(wallVertical[w][c][0]);
+          wallDumpY.push(wallVertical[w][c][1]);
+        }
+        wallClusterVerticalX.push(wallDumpX);
+        wallClusterVerticalY.push(wallDumpY);
+        wallDumpX = [];
+        wallDumpY = [];
+      }
+    }
+  }
+
+  for (let g=0; g<displayHeight; g+=20){
+    strokeWeight(1);
+    line(0, g, controlSpacer, g);
+    for(let z=0; z<dataMap.wall.length; z++){
+      if (dataMap.wall[z][1] >= g && dataMap.wall[z][1] <= g+20){
+        clusterHorizontal.push(dataMap.wall[z]);
+      }
+    }
+    wallHorizontal.push(clusterHorizontal);
+    clusterHorizontal = [];
+  }
+  wallHorizontal.push([0]);
+  for (let o=1; o<wallHorizontal.length; o++){
+    if (wallHorizontal[o].length > 90  ){
+      if (wallHorizontal[o].length > wallHorizontal[o-1].length && wallHorizontal[o].length > wallHorizontal[o+1].length){
+        for (let p=0; p<wallHorizontal[o].length; p++){
+          // point(wallHorizontal[o][p][0], wallHorizontal[o][p][1]);
+          wallDumpX.push(wallHorizontal[o][p][0]);
+          wallDumpY.push(wallHorizontal[o][p][1]);
+        }
+        wallClusterHorizontalX.push(wallDumpX);
+        wallClusterHorizontalY.push(wallDumpY);
+        wallDumpX = [];
+        wallDumpY = [];
+      }
+    }
+  }
+
+  for(let m=0; m<wallClusterVerticalX.length; m++){
+    linearRegressionDump.push(findLineByLeastSquares(wallClusterVerticalX[m], wallClusterVerticalY[m]));
+    let len = linearRegressionDump.length-1;
+    let maxY = Math.max.apply(Math, wallClusterVerticalY[m]);
+    let minY = Math.min.apply(Math, wallClusterVerticalY[m]); 
+    linearRegressionDump[len].push(maxY);
+    linearRegressionDump[len].push(minY);
+  }
+  wallLinearRegression.push(linearRegressionDump);
+  linearRegressionDump = [];
+
+  for(let n=0; n<wallClusterHorizontalX.length; n++){
+    linearRegressionDump.push(findLineByLeastSquares(wallClusterHorizontalX[n], wallClusterHorizontalY[n]));
+    let len = linearRegressionDump.length-1;
+    let maxX = Math.max.apply(Math, wallClusterHorizontalX[n]);
+    let minX = Math.min.apply(Math, wallClusterHorizontalX[n]); 
+    linearRegressionDump[len].push(maxX);
+    linearRegressionDump[len].push(minX);
+  }
+  wallLinearRegression.push(linearRegressionDump);
+  linearRegressionDump = [];
+  console.log(wallLinearRegression);
+
+  // wallLinearRegression.push();
 }
 
 function setup() {
@@ -1043,8 +1211,8 @@ function setup() {
   frameRate(10); 
 
   let controlSpacer = displayWidth - (displayWidth/4);
-  let firstLine = 120;
-  let spaceY = 30;
+  let firstLine = 105;
+  let spaceY = 28;
   
   // CONTROL
   inputForward = createInput("");
@@ -1078,32 +1246,56 @@ function setup() {
   // radioAutoManual.mousePressed(autoManual);
   radioAutoManual.style("width","300px");
 
-  checkboxRobotPath = createCheckbox("Show robot path", false);
-  checkboxRobotPath.position(controlSpacer + 60, firstLine + (5*spaceY));
-  checkboxRobotPath.changed(showRobotPath);
-
   buttonStartAuto = createButton("START AUTO");
-  buttonStartAuto.position(controlSpacer + 30, firstLine + (8*spaceY));
+  buttonStartAuto.position(controlSpacer + 30, firstLine + (7*spaceY));
   buttonStartAuto.mousePressed(startAuto);
 
   buttonStopAuto = createButton("STOP AUTO");
-  buttonStopAuto.position(controlSpacer + 150, firstLine + (8*spaceY));
+  buttonStopAuto.position(controlSpacer + 150, firstLine + (7*spaceY));
   buttonStopAuto.mousePressed(stopAuto);
 
   buttonHoming = createButton("RETURN TO HOME");
-  buttonHoming.position(controlSpacer + 60, firstLine + (9*spaceY));
+  buttonHoming.position(controlSpacer + 60, firstLine + (8*spaceY));
   buttonHoming.mousePressed(returnToHome);
 
-  buttonEmergencyStop = createButton("EMERGENCY STOP");
-  buttonEmergencyStop.position(controlSpacer + 60, firstLine + (10*spaceY));
-  buttonEmergencyStop.mousePressed(wallClustering);
+  // buttonEmergencyStop = createButton("EMERGENCY STOP");
+  // buttonEmergencyStop.position(controlSpacer + 60, firstLine + (10*spaceY));
+  // buttonEmergencyStop.mousePressed(wallClustering);
+
+  buttonCalculatewall = createButton("Calculate Wall");
+  buttonCalculatewall.position(controlSpacer + 30, firstLine + (10*spaceY)+10);
+  buttonCalculatewall.mousePressed(calculateWall);
+
+  buttonResetMap = createButton("Reset Data Map");
+  buttonResetMap.position(controlSpacer + 30, firstLine + (11*spaceY)+10);
+  buttonResetMap.mousePressed(resetMap);
+
+  checkboxRobotPath = createCheckbox("Show Calculated Wall", false);
+  checkboxRobotPath.position(controlSpacer + 155, firstLine + (10*spaceY)+10);
+  checkboxRobotPath.changed(showCalculatedWall);
+
+  checkboxGrid = createCheckbox("Show Grid", false);
+  checkboxGrid.position(controlSpacer + 155, firstLine + (11*spaceY));
+  checkboxGrid.changed(showGrid);
+
+  checkboxCluster = createCheckbox("Show Cluster", false);
+  checkboxCluster.position(controlSpacer + 155, firstLine + (12*spaceY)-10);
+  checkboxCluster.changed(showCluster);
+
+  checkboxRawWall = createCheckbox("Show Raw Wall", true);
+  checkboxRawWall.position(controlSpacer + 155, firstLine + (12*spaceY)+10);
+  checkboxRawWall.changed(showRawWall);
+
+  checkboxRobotPath = createCheckbox("Show robot path", false);
+  checkboxRobotPath.position(controlSpacer + 155, firstLine + (13*spaceY));
+  checkboxRobotPath.changed(showRobotPath);
 
   buttonExportMap = createButton("Export data Map");
-  buttonExportMap.position(controlSpacer + 30, firstLine + (12*spaceY));
+  buttonExportMap.position(controlSpacer + 30, firstLine + (15*spaceY));
   buttonExportMap.mousePressed(exportDataMap);
 
   buttonImportMap = createFileInput(importDataMap);
-  buttonImportMap.position(controlSpacer + 100, firstLine + (13*spaceY));
+  buttonImportMap.position(controlSpacer + 100, firstLine + (16*spaceY));
 }
 
 function draw() {
@@ -1143,10 +1335,10 @@ function draw() {
   textSize(14);
   textStyle(NORMAL);
   text("MANUAL CONTROL", controlSpacer + 70, 20);
-  text("AUTO CONTROL", controlSpacer + 70, 270);
+  text("AUTO CONTROL", controlSpacer + 70, 220);
 
   textSize(12);
-  text("Import (json)", controlSpacer + 10, 455);
+  text("Import (json)", controlSpacer + 10, 499);
 
   textSize(14);
   fill(255);
@@ -1188,11 +1380,15 @@ function draw() {
   // }
 
   // DRAW WALL
-  stroke(255);
-  strokeWeight(2);
-  for(let q = 0; q < dataMap.wall.length; q++){
-    point(dataMap.wall[q][0], dataMap.wall[q][1]);
+
+  if (rawWallChecked > 0){
+    stroke(255);
+    strokeWeight(2);
+    for(let q = 0; q < dataMap.wall.length; q++){
+      point(dataMap.wall[q][0], dataMap.wall[q][1]);
+    }
   }
+  
 
   // DRAW GAS
   for (let r = 0; r < dataMap.gas.voc.length; r++){
@@ -1241,6 +1437,66 @@ function draw() {
       let x2 = (dataMap.robotCor[s][0]*scale) + mapOffsetX;
       let y2 = -(dataMap.robotCor[s][1]*scale) + mapOffsetY;
       line(x1, y1, x2, y2);
+    }
+  }
+
+  if (gridChecked > 0){
+    for (let f=0; f<controlSpacer; f+=20){
+      strokeWeight(1);
+      stroke(255,0,0);
+      line(f,0,f, displayHeight);
+    }
+    for (let g=0; g<displayHeight; g+=20){
+      strokeWeight(1);
+      stroke(0,0,255);
+      line(0, g, controlSpacer, g);
+    }
+  }
+
+  if (dataMap.wall.length > 0){
+    if (clusterChecked > 0){
+      for(let w=0; w<wallClusterVerticalX.length; w++){
+        for(let v=0; v<wallClusterVerticalX[w].length; v++){
+          strokeWeight(3);
+          stroke(255,0,0);
+          point(wallClusterVerticalX[w][v], wallClusterVerticalY[w][v]);
+        }
+      }
+
+      for(let t=0; t<wallClusterHorizontalX.length; t++){
+        for(let u=0; u<wallClusterHorizontalX[t].length; u++){
+          strokeWeight(3);
+          stroke(0,0,255);
+          point(wallClusterHorizontalX[t][u], wallClusterHorizontalY[t][u]);
+        }
+      }
+    }
+    // function y = x * m + b
+    // function x = (y - b) / m
+    // index 0 vertical | index 1 horizontal
+    if (wallLinearRegression.length > 0 && calculatedWallChecked > 0){
+      for(let u=0; u<wallLinearRegression[0].length; u++){
+        let x1=(wallLinearRegression[0][u][3] - wallLinearRegression[0][u][1]) / wallLinearRegression[0][u][0];
+        let y1=wallLinearRegression[0][u][3];
+        let x2=(wallLinearRegression[0][u][2] - wallLinearRegression[0][u][1]) / wallLinearRegression[0][u][0];
+        let y2=wallLinearRegression[0][u][2];
+        strokeWeight(3);
+        stroke(255,0,0);
+        line(x1,y1,x2,y2);
+        text(dist(x1, y1, x2, y2), x1-10, y1+((y2-y1)/2));
+      }
+
+      // function y = x * m + b
+      for(let u=0; u<wallLinearRegression[1].length; u++){
+        let x1=wallLinearRegression[1][u][2];
+        let y1=(wallLinearRegression[1][u][2] * wallLinearRegression[1][u][0]) + wallLinearRegression[1][u][1];
+        let x2=wallLinearRegression[1][u][3];
+        let y2=(wallLinearRegression[1][u][3] * wallLinearRegression[1][u][0]) + wallLinearRegression[1][u][1];
+        strokeWeight(3);
+        stroke(0,0,255);
+        line(x1,y1,x2,y2);
+        text(dist(x1, y1, x2, y2), x1+((x2-x1)/2), y1-10);
+      }
     }
   }
 
