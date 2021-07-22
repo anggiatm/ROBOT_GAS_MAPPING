@@ -259,11 +259,11 @@ void forward(int target){
 
 void scan(){
   SENSOR_MPU.resetFIFO();
-  digitalWrite(FAN_RELAY_PIN, HIGH);
   count = 0;
   uint8_t hall = 0;
   uint8_t old_hall = 0;
   MOTOR_SERVO.write(SERVO_RUN_CW);
+  digitalWrite(FAN_RELAY_PIN, HIGH);
   while (count <= 1){
     hall = digitalRead(HALL_SENSOR);
     if (hall != old_hall){
@@ -274,11 +274,13 @@ void scan(){
     if (angle != angle_old){
       wall[angle] = SENSOR_RANGE.readRangeSingleMillimeters();
       angle_old = angle;
-      Serial.println(angle);
+      // Serial.println(angle);
     }
   }
-  //measure CO2 and TVOC levels
   
+  MOTOR_SERVO.write(SERVO_NEUTRAL);
+  //measure CO2 and TVOC levels
+  digitalWrite(FAN_RELAY_PIN, LOW);
   SENSOR_VOC.IAQmeasure();
   gas["voc"] = SENSOR_VOC.TVOC;
   gas["co2"] = SENSOR_VOC.eCO2;
@@ -293,9 +295,9 @@ void scan(){
   //measure battery level
   gas["battVolt"] = SENSOR_BATTERY.getBatteryVoltage();
   gas["battPers"] = SENSOR_BATTERY.getBatteryPercentage();
-  digitalWrite(FAN_RELAY_PIN, LOW);
+  
 
-  MOTOR_SERVO.write(SERVO_NEUTRAL);
+  
   buffer_len = serializeJson(root, buffer);  // serialize to buffer
 }
 
@@ -589,6 +591,8 @@ void setup(){
 }
 
 void loop() {
+  Serial.println(MQ2.readSensor());
+
   // Serial.println(SENSOR_RANGE.readRangeSingleMillimeters());
-  // vTaskDelay(2000/portTICK_PERIOD_MS);
+  vTaskDelay(2000/portTICK_PERIOD_MS);
 }

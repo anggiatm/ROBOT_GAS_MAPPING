@@ -50,7 +50,11 @@ let wallClusterVerticalX = [];
 let wallClusterVerticalY = [];
 let wallClusterHorizontalX = [];
 let wallClusterHorizontalY = [];
-let wallLinearRegression = []; 
+let wallLinearRegression = [];
+let intx = 0.0;
+let inty = 0.0;
+let overalGasQualityValue=0;
+let overalGasQualityString="Null";
 
 let mapOffsetX = 150;
 let mapOffsetY = 450;
@@ -89,12 +93,15 @@ let buttonStartAuto;
 let buttonStopAuto;
 let buttonHoming;
 let buttonEmergencyStop;
+let buttonCalculateGasQuality;
 
 let checkboxRobotPath;
 let checkboxCalculatedWall;
 let robotPathChecked = 0;
 let calculatedWallChecked =0;
 let checkboxRawWall;
+let checkboxLinearRegression;
+let LinearRegressionChecked = 0;
 let rawWallChecked = 1;
 
 let checkboxGrid;
@@ -175,15 +182,15 @@ function onMessage(event) {
     }
     dataMap.gas.voc.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.voc, 10)]);
     dataMap.gas.co2.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.co2, 10)]);
-    dataMap.gas.smoke.push([lastRobotCorX, lastRobotCorY, parseFloat(data.gas.smoke).toFixed(2)]);
+    dataMap.gas.smoke.push([lastRobotCorX, lastRobotCorY, parseFloat(data.gas.smoke).toFixed(4)]);
     dataMap.gas.temp.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.temp).toFixed(2)]);
     dataMap.gas.hum.push([lastRobotCorX, lastRobotCorY, parseFloat(data.gas.hum).toFixed(2)]);
     dataMap.gas.battVolt.push([lastRobotCorX, lastRobotCorY, parseFloat(data.gas.battVolt).toFixed(2)]);
     dataMap.gas.battPers.push([lastRobotCorX, lastRobotCorY, parseInt(data.gas.battPers, 10)]);
 
     let obj = {
-      // crisp_input: [parseInt(data.gas.voc, 10), parseInt(data.gas.co2, 10), parseInt(data.gas.smoke, 10)],
-      crisp_input: [parseInt(data.gas.voc, 10),parseInt(data.gas.co2),parseFloat(data.gas.smoke).toFixed(2)],
+      crisp_input: [parseInt(data.gas.voc, 10), parseInt(data.gas.co2, 10), parseInt(data.gas.smoke, 10), parseInt(data.gas.temp, 10), parseInt(data.gas.hum, 10)],
+      crisp_input: [10,10,150],
       variables_input: [
         {
           name: "VOC",
@@ -191,7 +198,7 @@ function onMessage(event) {
           sets: [
             [0,0,10,20],
             [10,20,20,30],
-            [20,30,40,40]
+            [20,30,300,300]
           ]
         },
         {
@@ -200,7 +207,7 @@ function onMessage(event) {
           sets: [
             [0,0,400,700],
             [400,700,700,1000],
-            [700,1000,1000,1000]
+            [700,1000,5000,5000]
           ]
         },
         {
@@ -209,7 +216,25 @@ function onMessage(event) {
           sets: [
             [0,0,10,30],
             [10,30,30,50],
-            [30,50,50,50]
+            [30,50,200,200]
+          ]
+        },
+        {
+          name: "TEMP",
+          setsName: ["dingin", "sedang", "panas"],
+          sets: [
+            [0,0,10,15],
+            [10,15,25,30],
+            [25,30,100,100]
+          ]
+        },
+        {
+          name: "HUM",
+          setsName: ["kering", "sedang", "lembab"],
+          sets: [
+            [0,0,40,45],
+            [40,45,55,60],
+            [55,60,100,100]
           ]
         }
       ],
@@ -217,17 +242,20 @@ function onMessage(event) {
         name: "QUALITY",
         setsName: ["baik", "sedang", "buruk"],
         sets: [
-          [0,0,25,50],
-          [25,50,50,75],
-          [50,75,100,100]
+          [0,0,40,40],
+          [40,40,70,70],
+          [70,70,100,100]
         ]
       },
       inferences: [
-        [2,1,0],
-        [2,1,0],
-        [2,1,0]
+        [0,1,2],
+        [0,1,2],
+        [0,1,2],
+        [2,0,2],
+        [2,0,2]
       ]
     };
+
     let fl = new FuzzyLogic();
     // console.log(fl.getResult(obj));
     let q = "";
@@ -240,7 +268,7 @@ function onMessage(event) {
       q = "baik";
     }
 
-    dataMap.gas.quality.push([lastRobotCorX, lastRobotCorY, q]);
+    dataMap.gas.quality.push([lastRobotCorX, lastRobotCorY, r]);
     // pathPlanning();
 
     sequence("readsensorcomplete");
@@ -337,6 +365,26 @@ function sequence(completeCommand){
 
 function onLoad(event) {
   initWebSocket();
+  let testX = 460;
+  let testY = 690;
+  let testPath;
+  let testHead;
+
+  testPath = Math.round(sqrt(pow(testX,2)+ pow(testY,2)));
+  testHead = Math.round((asin(testX/testPath))*180/Math.PI);
+  console.log(testPath);
+  console.log(testHead);
+  
+  let targetHeading = calculateAngleRemaining(180 + testHead);
+  targetHeading = normalizeAngle(targetHeading);
+  console.log(targetHeading);
+
+  angleMode(RADIANS);
+  let x = Math.round(sin(targetHeading * 0.0174533) * (testPath));
+  let y = Math.round(cos(targetHeading * 0.0174533) * (testPath));
+
+  console.log("awal =" + testX+ " akhir = "+ x);
+  console.log("awal =" + testY+ " akhir = "+ y);
   // initButton();
   // let a = [
   //   [0,0,0],
@@ -1076,6 +1124,14 @@ function showRawWall(){
   }
 }
 
+function showLinearRegression(){
+  if (this.checked()) {
+    LinearRegressionChecked = 1;
+  } else {
+    LinearRegressionChecked = 0;
+  }
+}
+
 function resetMap(){
   dataMap = {
     robotCor  : [
@@ -1109,6 +1165,26 @@ function resetMap(){
                  ];
   curGridCol = 1;
   curGridRow = 1;
+}
+
+function calculateGasQuality(){
+  let sum=0;
+  let average = 0;
+  for(let i=0; i<dataMap.gas.quality.length; i++){
+    sum = sum+dataMap.gas.quality[i][2];
+  }
+  average = sum / dataMap.gas.quality.length;
+  overalGasQualityValue = parseFloat(average).toFixed(2);
+  if (average<=40){
+    overalGasQualityString = "Baik";
+  }
+  else if (average >70){
+    overalGasQualityString = "Buruk";
+  }
+  else {
+    overalGasQualityString = "Sedang";
+  }
+  console.log(average);
 }
 
 function calculateWall(){
@@ -1205,6 +1281,44 @@ function calculateWall(){
   // wallLinearRegression.push();
 }
 
+function intersectionPt(x1,x2,x3,x4,y1,y2,y3,y4){
+  
+	let uA,uB;
+  let den,numA,numB;
+
+  den  = (y4-y3) * (x2-x1) - (x4-x3) * (y2-y1);
+  numA = (x4-x3) * (y1-y3) - (y4-y3) * (x1-x3);
+  numB = (x2-x1) * (y1-y3) - (y2-y1) * (x1-x3);
+  
+  //Coincident? - If true, displays intersection in center of line segment
+   if (abs(numA) == 0 && abs(numB) == 0 && abs(den) == 0) {
+      intx = (x1 + x2) / 2;
+      inty = (y1 + y2) / 2;
+      return(true);
+   }
+
+   //Parallel? - No intersection
+   if (abs(den) == 0) {
+      intx = 0;
+      inty = 0;
+      return(false);
+   }
+
+   //Intersection?
+   uA = numA / den;
+   uB = numB / den;
+  
+   //If both lie w/in the range of 0 to 1 then the intersection point is within both line segments.
+   if (uA < 0 || uA > 1 || uB < 0 || uB > 1) {
+      intx = 0;
+      inty = 0;
+      return(false);
+   }
+   intx = x1 + uA * (x2 - x1);
+   inty = y1 + uA * (y2 - y1);
+   return(true);
+}
+
 function setup() {
   let canvas = createCanvas(windowWidth - 50, windowHeight -100);
   canvas.position(20, 70);
@@ -1266,28 +1380,36 @@ function setup() {
   buttonCalculatewall.position(controlSpacer + 30, firstLine + (10*spaceY)+10);
   buttonCalculatewall.mousePressed(calculateWall);
 
+  buttonCalculateGasQuality = createButton("Calculate Gas Quality");
+  buttonCalculateGasQuality.position(controlSpacer + 30, firstLine + (11*spaceY)+10);
+  buttonCalculateGasQuality.mousePressed(calculateGasQuality);
+
   buttonResetMap = createButton("Reset Data Map");
-  buttonResetMap.position(controlSpacer + 30, firstLine + (11*spaceY)+10);
+  buttonResetMap.position(controlSpacer + 30, firstLine + (12*spaceY)+10);
   buttonResetMap.mousePressed(resetMap);
 
   checkboxRobotPath = createCheckbox("Show Calculated Wall", false);
-  checkboxRobotPath.position(controlSpacer + 155, firstLine + (10*spaceY)+10);
+  checkboxRobotPath.position(controlSpacer + 175, firstLine + (10*spaceY)+10);
   checkboxRobotPath.changed(showCalculatedWall);
 
   checkboxGrid = createCheckbox("Show Grid", false);
-  checkboxGrid.position(controlSpacer + 155, firstLine + (11*spaceY));
+  checkboxGrid.position(controlSpacer + 175, firstLine + (11*spaceY));
   checkboxGrid.changed(showGrid);
 
   checkboxCluster = createCheckbox("Show Cluster", false);
-  checkboxCluster.position(controlSpacer + 155, firstLine + (12*spaceY)-10);
+  checkboxCluster.position(controlSpacer + 175, firstLine + (12*spaceY)-10);
   checkboxCluster.changed(showCluster);
 
+  checkboxLinearRegression = createCheckbox("Show Line", false);
+  checkboxLinearRegression.position(controlSpacer + 175, firstLine + (12*spaceY)+10);
+  checkboxLinearRegression.changed(showLinearRegression);
+
   checkboxRawWall = createCheckbox("Show Raw Wall", true);
-  checkboxRawWall.position(controlSpacer + 155, firstLine + (12*spaceY)+10);
+  checkboxRawWall.position(controlSpacer + 175, firstLine + (13*spaceY));
   checkboxRawWall.changed(showRawWall);
 
   checkboxRobotPath = createCheckbox("Show robot path", false);
-  checkboxRobotPath.position(controlSpacer + 155, firstLine + (13*spaceY));
+  checkboxRobotPath.position(controlSpacer + 175, firstLine + (14*spaceY)-10);
   checkboxRobotPath.changed(showRobotPath);
 
   buttonExportMap = createButton("Export data Map");
@@ -1388,35 +1510,86 @@ function draw() {
       point(dataMap.wall[q][0], dataMap.wall[q][1]);
     }
   }
-  
+  strokeWeight(15);
+  stroke(0,255,0);
+  point(controlSpacer-175,300);
+  stroke(255,255,0);
+  point(controlSpacer-175,325);
+  stroke(255,0,0);
+  point(controlSpacer-175,350);
+
+  stroke(0,255,255);
+  point(controlSpacer-175,400);
+
+  strokeWeight(1);
+  stroke(255,0,0);
+  line(controlSpacer-165,425,controlSpacer-185,425);
+
+  strokeWeight(2);
+  stroke(0,0,255);
+  line(controlSpacer-165,450,controlSpacer-185,450);
+
+  strokeWeight(3);
+  stroke(255,0,0);
+  line(controlSpacer-165,475,controlSpacer-185,475);
+
+  strokeWeight(3);
+  stroke(255);
+  point(controlSpacer-175,500);
+
+  strokeWeight(0);
+  textStyle(BOLD);
+  text("Legend :",controlSpacer-180,253);
+  textStyle(NORMAL);
+  text("Map Scale : 3.33 mm / px",controlSpacer-180,278);
+  text("Kualitas Baik",controlSpacer-155,303);
+  text("Kualitas Sedang",controlSpacer-155,329);
+  text("Kualitas Buruk",controlSpacer-155,355);
+
+  text("Intersection Point",controlSpacer-155,405);
+  text("Robot Path",controlSpacer-155,430);
+  text("Linear Regression",controlSpacer-155,455);
+  text("Wall Segment / Point Dist",controlSpacer-155,480);
+  text("Wall Point Cloud",controlSpacer-155,505);
+
+  textStyle(BOLD);
+  text("Overal Gas Quality :",controlSpacer-185, 100);
+  textStyle(NORMAL);
+  text("Kualitas Udara   "+overalGasQualityString,controlSpacer-185,125);
+  text("Nilai                    "+overalGasQualityValue,controlSpacer-185,150);
 
   // DRAW GAS
   for (let r = 0; r < dataMap.gas.voc.length; r++){
-    if (dataMap.gas.quality[r][2] === "buruk"){
-      stroke(255,0,0);
-    }
-    else if (dataMap.gas.quality[r][2] === "sedang"){
-      stroke(255,255,0);
-    }
-    else{
-      stroke(0,255,0);
-    }
-    strokeWeight(15);
-    point(dataMap.gas.voc[r][0], dataMap.gas.voc[r][1]);
-
     let gasPointX = (dataMap.gas.voc[r][0] - mapOffsetX) / scale;
     let gasPointY = (dataMap.gas.voc[r][1] - mapOffsetY) / scale;
 
     if (mX >= gasPointX-30 && mX <= gasPointX + 30 && mY >= gasPointY-30 && mY <= gasPointY+30){
-      noStroke();
+      strokeWeight(0);
+      fill(255,0,0);
       textSize(10);
+      text("COR  : " + parseInt(dataMap.gas.voc[r][0],10)+","+parseInt(dataMap.gas.voc[r][1],10), dataMap.gas.voc[r][0] + 30, dataMap.gas.voc[r][1] - 40);
       text("VOC  : " + dataMap.gas.voc[r][2] + " ppb", dataMap.gas.voc[r][0] + 30, dataMap.gas.voc[r][1] - 30);
       text("CO2  : " + dataMap.gas.co2[r][2] + " ppm", dataMap.gas.co2[r][0] + 30, dataMap.gas.co2[r][1] - 20);
-      text("SMOKE: " + dataMap.gas.smoke[r][2] + " ppm", dataMap.gas.smoke[r][0] + 30, dataMap.gas.smoke[r][1] - 10);
+      text("SMOKE: " + dataMap.gas.smoke[r][2] + " ug/m3", dataMap.gas.smoke[r][0] + 30, dataMap.gas.smoke[r][1] - 10);
+      text("TEMP : " + dataMap.gas.temp[r][2] + " C", dataMap.gas.temp[r][0] + 30, dataMap.gas.temp[r][1] );
+      text("HUM  : " + dataMap.gas.hum[r][2] + " %", dataMap.gas.hum[r][0] + 30, dataMap.gas.hum[r][1] + 10);
       stroke(255);
-      strokeWeight(1);
+      
       line(dataMap.gas.voc[r][0] + 5, dataMap.gas.voc[r][1] - 5, dataMap.gas.voc[r][0] + 30, dataMap.gas.voc[r][1] - 30);
     }
+    if (dataMap.gas.quality[r][2] <= 33){
+      stroke(0,255,0);
+    }
+    else if (dataMap.gas.quality[r][2] >= 66){
+      stroke(255,0,0);
+    }
+    else{
+      stroke(255,255,0);
+    }
+    strokeWeight(15);
+    point(dataMap.gas.voc[r][0], dataMap.gas.voc[r][1]);
+
+    
   }
 
   if (mX >= lastRobotCorX-30 && mX <= lastRobotCorX + 30 &&
@@ -1475,30 +1648,92 @@ function draw() {
     // function x = (y - b) / m
     // index 0 vertical | index 1 horizontal
     if (wallLinearRegression.length > 0 && calculatedWallChecked > 0){
+      let intersectionLine = [];
+      let intersectionPoint = [];
       for(let u=0; u<wallLinearRegression[0].length; u++){
-        let x1=(wallLinearRegression[0][u][3] - wallLinearRegression[0][u][1]) / wallLinearRegression[0][u][0];
-        let y1=wallLinearRegression[0][u][3];
-        let x2=(wallLinearRegression[0][u][2] - wallLinearRegression[0][u][1]) / wallLinearRegression[0][u][0];
-        let y2=wallLinearRegression[0][u][2];
-        strokeWeight(3);
-        stroke(255,0,0);
+        let x1=(wallLinearRegression[0][u][3]-150 - wallLinearRegression[0][u][1]) / wallLinearRegression[0][u][0];
+        let y1=wallLinearRegression[0][u][3]-150;
+        let x2=(wallLinearRegression[0][u][2]+150 - wallLinearRegression[0][u][1]) / wallLinearRegression[0][u][0];
+        let y2=wallLinearRegression[0][u][2]+150;
+        strokeWeight(2);
+        stroke(0,0,255);
         line(x1,y1,x2,y2);
-        text(dist(x1, y1, x2, y2), x1-10, y1+((y2-y1)/2));
+        
+        intersectionLine.push([x1,y1,x2,y2]);
+        // text(dist(x1, y1, x2, y2), x1-10, y1+((y2-y1)/2));
       }
 
       // function y = x * m + b
       for(let u=0; u<wallLinearRegression[1].length; u++){
-        let x1=wallLinearRegression[1][u][2];
-        let y1=(wallLinearRegression[1][u][2] * wallLinearRegression[1][u][0]) + wallLinearRegression[1][u][1];
-        let x2=wallLinearRegression[1][u][3];
-        let y2=(wallLinearRegression[1][u][3] * wallLinearRegression[1][u][0]) + wallLinearRegression[1][u][1];
-        strokeWeight(3);
+        let x1=wallLinearRegression[1][u][2]+150;
+        let y1=((wallLinearRegression[1][u][2]+150) * wallLinearRegression[1][u][0]) + wallLinearRegression[1][u][1];
+        let x2=wallLinearRegression[1][u][3]-150;
+        let y2=((wallLinearRegression[1][u][3]-150) * wallLinearRegression[1][u][0]) + wallLinearRegression[1][u][1];
+        strokeWeight(2);
         stroke(0,0,255);
         line(x1,y1,x2,y2);
-        text(dist(x1, y1, x2, y2), x1+((x2-x1)/2), y1-10);
+        intersectionLine.push([x1,y1,x2,y2]);
+        // text(dist(x1, y1, x2, y2), x1+((x2-x1)/2), y1-10);
+      }
+
+      for(let v=0; v<intersectionLine.length; v++){
+        let x1 = intersectionLine[v][0];
+        let y1 = intersectionLine[v][1];
+        let x2 = intersectionLine[v][2];
+        let y2 = intersectionLine[v][3];
+        
+        for(var j=0; j<intersectionLine.length; j++){
+          if(j!=v){
+            let x3 = intersectionLine[j][0];
+            let y3 = intersectionLine[j][1];
+            let x4 = intersectionLine[j][2];
+            let y4 = intersectionLine[j][3];
+
+            intx = 0.0;
+            inty = 0.0;
+            intersectionPt(x1,x2,x3,x4,y1,y2,y3,y4,intx,inty)
+            let duplicate =0;
+            if (intx > 0 && inty > 0){
+              for(let k=0; k<intersectionPoint.length; k++){
+                if(Math.round(intersectionPoint[k][0]) == Math.round(intx) && Math.round(intersectionPoint[k][1]) == Math.round(inty)){
+                  duplicate = 1;
+                }
+              }
+              if (duplicate == 0){
+                stroke(0,255,255);
+                strokeWeight(15);
+                point(intx, inty);
+                intersectionPoint.push([Math.round(intx), Math.round(inty)]);
+              }
+            }
+          }
+        }
+      }
+
+      if (LinearRegressionChecked == 0){
+        for(let w=0; w<intersectionPoint.length; w++){
+          for (let x=w+1; x<intersectionPoint.length; x++){
+            let x1 = intersectionPoint[w][0];
+            let y1 = intersectionPoint[w][1];
+            let x2 = intersectionPoint[x][0];
+            let y2 = intersectionPoint[x][1];
+            stroke(255,0,0);
+            strokeWeight(3);
+            line(x1,y1,x2,y2);
+            let distance = Math.round(dist(x1, y1, x2, y2));
+            let distanceCorX = x1+((x2-x1))/3;
+            let distanceCorY = y1+((y2-y1)/3);
+            strokeWeight(3);
+            stroke(150,0,0);
+            fill(0);
+            text(distance, distanceCorX, distanceCorY);
+          }
+        }
       }
     }
   }
+
+  fill(255);
 
   // ROBOT MODEL
   stroke(0);
