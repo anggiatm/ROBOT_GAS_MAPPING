@@ -22,9 +22,9 @@ Robot dilengkapi dengan sensor LiDAR untuk mendeteksi dinding disekitar robot, s
 
 Pada repositori ini terdapat beberapa resources yang digunakan untuk membuat robot mapping kadar gas sebuah ruangan,
 diantaranya adalah :
-- source code arduino framework
-- source code web interface dengan p5.js
-- file 3D printer (.STL)
+- [source code arduino framework](https://github.com/anggiatm/ROBOT_GAS_MAPPING/blob/main/src/robot.cpp)
+- [source code web interface dengan p5.js](https://github.com/anggiatm/ROBOT_GAS_MAPPING/blob/main/data/app.js)
+- [3D model untuk 3D printer (.STL)](https://github.com/anggiatm/ROBOT_GAS_MAPPING/tree/main/3d-model)
 - dokumentasi
 
 Beberapa bahan bahan yang digunakan pada robot ini diantaranya :
