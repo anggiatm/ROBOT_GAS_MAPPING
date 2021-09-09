@@ -1577,10 +1577,10 @@ function draw() {
       
       line(dataMap.gas.voc[r][0] + 5, dataMap.gas.voc[r][1] - 5, dataMap.gas.voc[r][0] + 30, dataMap.gas.voc[r][1] - 30);
     }
-    if (dataMap.gas.quality[r][2] <= 33){
+    if (dataMap.gas.quality[r][2] <= 31){
       stroke(0,255,0);
     }
-    else if (dataMap.gas.quality[r][2] >= 66){
+    else if (dataMap.gas.quality[r][2] >= 65){
       stroke(255,0,0);
     }
     else{

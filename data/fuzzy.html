@@ -3,9 +3,8 @@
 <head>
 	<meta charset="utf-8">
 	<title>Fuzzy Logic</title>
-</head>
 <script src="./fuzzy-mamdani.js"></script>
-<script>
+<!-- <script>
 	// let obj = {
   //     crisp_input: [10,10,150],
   //     variables_input: [
@@ -70,8 +69,305 @@
   //     ]
   //   };
 	// calculateFuzzyMamdani(obj);
-  let data =[2,600,40,30,50];
-  calculateFuzzy(data);
+  //1
+  // let data =[2,600,40,30,50];
+    //2
+  // let data =[0,400,19.55,30.2,55];
+
+  let data = [];
+  data[0] = [0, 400, 20.22, 30.3, 59];
+  data[1] = [21, 400, 12.79, 30.7, 58];
+  data[2] = [4, 400, 11.41, 30.7, 59];
+  data[3] = [47, 400, 11.84, 30.8, 56];
+  data[4] = [15, 415, 14.46, 31, 56];
+  data[5] = [30, 560, 42.35, 29.8, 55];
+  data[6] = [155, 1699, 24.53, 30.2, 56];
+  data[7] = [369, 1359, 57.61, 32.8, 55];
+  data[8] = [237, 2873, 65.29, 32.9, 54];
+  data[9] = [158, 2154, 73.15, 33, 54];
+
+
+
+  // let data =[200,2000,40,40,100];
+  // let data =[2,600,40,30,50];
+  for(let i=0; i<10; i++){
+    let a = i+1;
+    console.log("data "+a+" = "+ calculateFuzzy(data[i]));
+  }
+
+  
+
+  let aktual = [];
+  aktual[0]=[0, 405.67, 18.69, 27.1, 61.82];
+  aktual[1]=[23, 393.84, 9.29, 26.41, 63.29];
+  aktual[2]=[5, 371.15, 10.06, 27.13, 60.33];
+  aktual[3]=[47, 387.5, 10.53, 27.55, 63.56];
+  aktual[4]=[12, 438.22, 15.87, 28.9, 62.8];
+  aktual[5]=[29, 519.3, 39.56, 27.79, 61.04];
+  aktual[6]=[141, 1853.24, 25.49, 28.89, 59.53];
+  aktual[7]=[348, 1575.6, 52.89, 30.22, 59.06];
+  aktual[8]=[209, 3034.54, 60.36, 30.51, 58.39];
+  aktual[9]=[133, 2294.66, 65.14, 31.4, 58.79];
+
+  for(let i=0; i<10; i++){
+    let a = i+1;
+    console.log("aktual "+a+" = "+ calculateFuzzy(aktual[i]));
+  }
+
+
+  console.log("");
+  console.log("VERIIFIKASI VOC");
+  for(let i=0; i<10; i++){
+    let verifikasiHasil = calculateFuzzy(aktual[i]);
+
+    let robotDataVOC = [data[i][0], aktual[i][1], aktual[i][2], aktual[i][3], aktual[i][4]];
+    let robotHasilVOC = calculateFuzzy(robotDataVOC);
+
+    console.log(aktual[i] + " | "+verifikasiHasil + " || "+ robotDataVOC + " | " + robotHasilVOC);
+  }
+
+  console.log("");
+  console.log("VERIIFIKASI CO2");
+  for(let i=0; i<10; i++){
+    let verifikasiHasil = calculateFuzzy(aktual[i]);
+
+    let robotDataCO2 = [aktual[i][0], data[i][1], aktual[i][2], aktual[i][3], aktual[i][4]];
+    let robotHasilCO2 = calculateFuzzy(robotDataCO2);
+
+    console.log(aktual[i] + " | "+verifikasiHasil + " || "+ robotDataCO2 + " | " + robotHasilCO2);
+  }
+
+  console.log("");
+  console.log("VERIIFIKASI ASAP");
+  for(let i=0; i<10; i++){
+    let verifikasiHasil = calculateFuzzy(aktual[i]);
+
+    let robotDataAsap = [aktual[i][0], aktual[i][1], data[i][2], aktual[i][3], aktual[i][4]];
+    let robotHasilAsap = calculateFuzzy(robotDataAsap);
+
+    console.log(aktual[i] + " | "+verifikasiHasil + " || "+ robotDataAsap + " | " + robotHasilAsap);
+  }
+
+  console.log("");
+  console.log("VERIIFIKASI TEMPERATURE");
+  for(let i=0; i<10; i++){
+    let verifikasiHasil = calculateFuzzy(aktual[i]);
+
+    let robotDataTEMP = [aktual[i][0], aktual[i][1], aktual[i][2], data[i][3], aktual[i][4]];
+    let robotHasilTemp = calculateFuzzy(robotDataTEMP);
+
+    console.log(aktual[i] + " | "+verifikasiHasil + " || "+ robotDataTEMP + " | " + robotHasilTemp);
+  }
+
+  console.log("");
+  console.log("VERIIFIKASI HUMIDITY");
+  for(let i=0; i<10; i++){
+    let verifikasiHasil = calculateFuzzy(aktual[i]);
+
+    let robotDataHUM = [aktual[i][0], aktual[i][1], aktual[i][2], aktual[i][3], data[i][4]];
+    let robotHasilHUM = calculateFuzzy(robotDataHUM);
+
+    console.log(aktual[i] + " | "+verifikasiHasil + " || "+ robotDataHUM + " | " + robotHasilHUM);
+  }
+
+
+  console.log(calculateFuzzy([0,420,18.63,31.3,60]));
+
+  // calculateFuzzy(data1);
+</script> -->
+
+<script>
+  function calculate(){
+    let voc = document.getElementById("voc").value;
+    let co2 = document.getElementById("co2").value;
+    let asap = document.getElementById("asap").value;
+    let temp = document.getElementById("temp").value;
+    let hum = document.getElementById("hum").value;
+
+    let hasil = calculateFuzzy([voc, co2, asap, temp, hum]);;
+    document.getElementById("hasil").value = hasil;
+    // console.log("sajkdhks");
+  }
 </script>
+
+<script>
+//RUANGAN 1
+let aktual = [
+  [0, 380.23, 11.55, 30.65, 61.47],
+  [1, 390.26, 12.32, 31.87, 63.55],
+  [0, 405.28, 15.67, 31.06, 63.23],
+  [12, 411.12, 16.22, 30.44, 64.22],
+  [14, 401.72, 15.98, 28.32, 62.54],
+  [9, 478.32, 17.59, 29.45, 63.26],
+  [7, 523.21, 26.46, 28.56, 61.59],
+  [4, 719.48, 24.75, 28.22, 61.26],
+  [3, 578.71, 28.56, 28.49, 62.91],
+  [2, 688.21, 19.23, 26.07, 62.39],
+  [0, 579.55, 24.87, 26.36, 62.89],
+  [0, 721.3, 22.56, 26.45, 61.22]
+];
+
+let robot = [
+  [0, 400, 11.89, 32.2, 58], // 1
+  [1, 439, 13.25, 33.3, 62], // 2
+  [0, 420, 18.63, 33.3, 62], // 3
+  [10, 483, 18.33, 32.4, 60], // 4
+  [12, 523, 19.27, 30.6, 58], // 5
+  [10, 536, 21.54, 33.2, 58], // 6
+  [8, 508, 26.45, 31.8, 59], // 7
+  [3, 671, 25.77, 31.7, 58], // 8
+  [3, 493, 29.45, 31.7, 58],
+  [1, 600, 20.26, 28.6, 61],
+  [0, 539, 28.51, 28.9, 61],
+  [0, 705, 28.76, 29.9, 61]
+];
+
+// RUANGAN 2
+
+// let aktual = [
+//   [2, 423.15, 16.22, 28.65, 63.69],
+//   [3, 387.54, 16.59, 28.69, 63.15],
+//   [3, 402.01, 17.56, 27.48, 62.55],
+//   [2, 526.55, 14.36, 27.31, 62.47],
+//   [3, 695.33, 14.26, 27.44, 62.33],
+//   [1, 739.5, 14.24, 27.87, 63.59],
+//   [0, 473.2, 7.23, 27.52, 62.14],
+//   [1, 472.19, 9.45, 28.13, 62.11],
+//   [1, 385.66, 8.69, 27.69, 60.59],
+//   [0, 372.18, 7.84, 27.44, 61.23],
+//   [0, 361.26, 6.87, 26.98, 60.47],
+//   [0, 392.4, 6.39, 27.69, 61.48]
+// ];
+
+// let robot = [
+// [3, 453, 15.23, 31.3, 59],
+// [2, 428, 16.72, 31.1, 59],
+// [3, 413, 18.45, 30.2, 58],
+// [1, 565, 12.45, 29.4, 59],
+// [2, 723, 15.38, 29.4, 58],
+// [1, 753, 16.73, 30.1, 58],
+// [0, 452, 6.32, 28.3, 57],
+// [1, 472, 10.28, 27.7, 56],
+// [1, 400, 9.53, 27.3, 56],
+// [0, 400, 8.99, 28, 57],
+// [0, 400, 8.76, 28.5, 55],
+// [0, 405, 9.28, 29.3, 57]
+// ];
+
+// RUANGAN 3
+// let aktual = [
+// [0, 348.44, 12.44, 25.69, 59.44],
+// [0, 356.98, 7.69, 24.78, 60.59],
+// [1, 375.64, 9.48, 25.44, 63.45],
+// [2, 789.45, 70.45, 27.14, 64.23],
+// [4, 947.65, 45.69, 27.54, 63.26],
+// [2, 947.66, 55.49, 27.34, 62.47],
+// [1, 457.42, 6.99, 26.44, 58.64],
+// [0, 431.47, 6.12, 26.75, 57.23]
+// ];
+
+// let robot = [
+// [0, 400, 10.32, 26.8, 55],
+// [0, 400, 7.35, 26.7, 56],
+// [1, 408, 8.26, 26.6, 63],
+// [2, 876, 59.7, 29, 60],
+// [3, 1003, 42.55, 29.2, 59],
+// [2, 923, 52.78, 28.9, 57],
+// [1, 400, 6.32, 26.8, 55],
+// [0, 400, 5.02, 26.7, 55]
+// ];
+
+// for(let i=0; i<aktual.length; i++){
+//     let a = i+1;
+//     console.log("aktual "+a+" = "+ calculateFuzzy(aktual[i]));
+//   }
+
+
+//   console.log("");
+//   console.log("VERIIFIKASI VOC");
+//   for(let i=0; i<aktual.length; i++){
+//     let verifikasiHasil = calculateFuzzy(aktual[i]);
+
+//     let robotDataVOC = [robot[i][0], aktual[i][1], aktual[i][2], aktual[i][3], aktual[i][4]];
+//     let robotHasilVOC = calculateFuzzy(robotDataVOC);
+
+//     console.log(aktual[i] + " | "+verifikasiHasil + " || "+ robotDataVOC + " | " + robotHasilVOC);
+//   }
+
+//   console.log("");
+//   console.log("VERIIFIKASI CO2");
+//   for(let i=0; i<aktual.length; i++){
+//     let verifikasiHasil = calculateFuzzy(aktual[i]);
+
+//     let robotDataCO2 = [aktual[i][0], robot[i][1], aktual[i][2], aktual[i][3], aktual[i][4]];
+//     let robotHasilCO2 = calculateFuzzy(robotDataCO2);
+
+//     console.log(aktual[i] + " | "+verifikasiHasil + " || "+ robotDataCO2 + " | " + robotHasilCO2);
+//   }
+
+//   console.log("");
+//   console.log("VERIIFIKASI ASAP");
+//   for(let i=0; i<aktual.length; i++){
+//     let verifikasiHasil = calculateFuzzy(aktual[i]);
+
+//     let robotDataAsap = [aktual[i][0], aktual[i][1], robot[i][2], aktual[i][3], aktual[i][4]];
+//     let robotHasilAsap = calculateFuzzy(robotDataAsap);
+
+//     console.log(aktual[i] + " | "+verifikasiHasil + " || "+ robotDataAsap + " | " + robotHasilAsap);
+//   }
+
+//   console.log("");
+//   console.log("VERIIFIKASI TEMPERATURE");
+//   for(let i=0; i<aktual.length; i++){
+//     let verifikasiHasil = calculateFuzzy(aktual[i]);
+
+//     let robotDataTEMP = [aktual[i][0], aktual[i][1], aktual[i][2], robot[i][3], aktual[i][4]];
+//     let robotHasilTemp = calculateFuzzy(robotDataTEMP);
+
+//     console.log(aktual[i] + " | "+verifikasiHasil + " || "+ robotDataTEMP + " | " + robotHasilTemp);
+//   }
+
+//   console.log("");
+//   console.log("VERIIFIKASI HUMIDITY");
+//   for(let i=0; i<aktual.length; i++){
+//     let verifikasiHasil = calculateFuzzy(aktual[i]);
+
+//     let robotDataHUM = [aktual[i][0], aktual[i][1], aktual[i][2], aktual[i][3], robot[i][4]];
+//     let robotHasilHUM = calculateFuzzy(robotDataHUM);
+
+//     console.log(aktual[i] + " | "+verifikasiHasil + " || "+ robotDataHUM + " | " + robotHasilHUM);
+//   }
+
+// for(let i=0; i<aktual.length; i++){
+//   console.log(calculateFuzzy(aktual[i]));
+// }
+// console.log("ROBOT");
+// for(let i=0; i<robot.length; i++){
+//   console.log(calculateFuzzy(robot[i]));
+// }
+</script>
+
+</head>
+<body>
+  <label for="voc">VOC :</label>
+  <input type="text" name="voc" id="voc">
+  <br>
+  <label for="co2">co2 :</label>
+  <input type="text" name="co2" id="co2">
+  <br>
+  <label for="asap">asap :</label>
+  <input type="text" name="asap" id="asap">
+  <br>
+  <label for="temp">temp :</label>
+  <input type="text" name="temp" id="temp">
+  <br>
+  <label for="hum">hum :</label>
+  <input type="text" name="hum" id="hum">
+  <br>
+  <button onclick="calculate()">Calculate</button>
+  <hr>
+  <br>
+  <input type="text" id="hasil">
 </body>
+
 </html>
