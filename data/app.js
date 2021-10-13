@@ -1,4 +1,5 @@
-var gateway = "ws://192.168.43.222/ws";
+var gateway = "ws://192.168.1.8/ws";
+// var gateway = "ws://192.168.43.222/ws";
 // var gateway = "ws://192.168.1.11/ws";
 
 var websocket;
@@ -1563,20 +1564,24 @@ function draw() {
     let gasPointX = (dataMap.gas.voc[r][0] - mapOffsetX) / scale;
     let gasPointY = (dataMap.gas.voc[r][1] - mapOffsetY) / scale;
 
-    if (mX >= gasPointX-30 && mX <= gasPointX + 30 && mY >= gasPointY-30 && mY <= gasPointY+30){
+    // if (mX >= gasPointX-30 && mX <= gasPointX + 30 && mY >= gasPointY-30 && mY <= gasPointY+30){
       strokeWeight(0);
-      fill(255,0,0);
+      fill(255);
       textSize(10);
-      text("COR  : " + parseInt(dataMap.gas.voc[r][0],10)+","+parseInt(dataMap.gas.voc[r][1],10), dataMap.gas.voc[r][0] + 30, dataMap.gas.voc[r][1] - 40);
-      text("VOC  : " + dataMap.gas.voc[r][2] + " ppb", dataMap.gas.voc[r][0] + 30, dataMap.gas.voc[r][1] - 30);
-      text("CO2  : " + dataMap.gas.co2[r][2] + " ppm", dataMap.gas.co2[r][0] + 30, dataMap.gas.co2[r][1] - 20);
-      text("SMOKE: " + dataMap.gas.smoke[r][2] + " ug/m3", dataMap.gas.smoke[r][0] + 30, dataMap.gas.smoke[r][1] - 10);
-      text("TEMP : " + dataMap.gas.temp[r][2] + " C", dataMap.gas.temp[r][0] + 30, dataMap.gas.temp[r][1] );
-      text("HUM  : " + dataMap.gas.hum[r][2] + " %", dataMap.gas.hum[r][0] + 30, dataMap.gas.hum[r][1] + 10);
+      text("Cor: " + parseInt(dataMap.gas.voc[r][0],10)+","+parseInt(dataMap.gas.voc[r][1],10), dataMap.gas.voc[r][0] - 20, dataMap.gas.voc[r][1] + 17);
+      text("Qua: " + dataMap.gas.quality[r][2] + " %", dataMap.gas.voc[r][0] - 20, dataMap.gas.voc[r][1] + 27);
+
+      // text("COR  : " + parseInt(dataMap.gas.voc[r][0],10)+","+parseInt(dataMap.gas.voc[r][1],10), dataMap.gas.voc[r][0] + 30, dataMap.gas.voc[r][1] - 40);
+      // text("VOC  : " + dataMap.gas.voc[r][2] + " ppb", dataMap.gas.voc[r][0] + 30, dataMap.gas.voc[r][1] - 30);
+      // text("CO2  : " + dataMap.gas.co2[r][2] + " ppm", dataMap.gas.co2[r][0] + 30, dataMap.gas.co2[r][1] - 20);
+      // text("SMOKE: " + dataMap.gas.smoke[r][2] + " ug/m3", dataMap.gas.smoke[r][0] + 30, dataMap.gas.smoke[r][1] - 10);
+      // text("TEMP : " + dataMap.gas.temp[r][2] + " C", dataMap.gas.temp[r][0] + 30, dataMap.gas.temp[r][1] );
+      // text("HUM  : " + dataMap.gas.hum[r][2] + " %", dataMap.gas.hum[r][0] + 30, dataMap.gas.hum[r][1] + 10);
+
       stroke(255);
       
       line(dataMap.gas.voc[r][0] + 5, dataMap.gas.voc[r][1] - 5, dataMap.gas.voc[r][0] + 30, dataMap.gas.voc[r][1] - 30);
-    }
+    // }
     if (dataMap.gas.quality[r][2] <= 31){
       stroke(0,255,0);
     }

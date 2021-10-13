@@ -96,11 +96,11 @@ volatile bool mpuInterrupt = false;
 
 MQUnifiedsensor MQ2("ESP32", 3.3, 12, SMOKE_SENSOR, "MQ-2");
 
-// const char* ssid = "RP";
-// const char* password = "rumahpenelitian123";
+const char* ssid = "RP";
+const char* password = "rumahpenelitian123";
 
-const char* ssid = "MIX";
-const char* password = "123456789";
+// const char* ssid = "MIX";
+// const char* password = "123456789";
 
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
